@@ -1,6 +1,16 @@
 specs:
+  - name: distribution
+    remote: https://github.com/opencontainers/distribution-spec
+    releases:
+      - tag: v1.0.0
+      - tag: v1.0.1
+      - tag: v1.1.0-rc1
+      - tag: v1.1.0-rc2
+      - tag: v1.1.0-rc3
+      - branch: main
+        commit: 91ba954eac70e40d63b2678421e7197cd33e0f2e
   - name: image
-    remote: https://github.com/opencontainers/image-spec.git
+    remote: https://github.com/opencontainers/image-spec
     releases:
       - tag: v1.0.0
       - tag: v1.0.1
@@ -12,18 +22,8 @@ specs:
       - tag: v1.1.0-rc5
       - branch: main
         commit: ceeb2eba078e8b630f5ee62df2e92323fb521f0e
-  - name: distribution
-    remote: https://github.com/opencontainers/distribution-spec.git
-    releases:
-      - tag: v1.0.0
-      - tag: v1.0.1
-      - tag: v1.1.0-rc1
-      - tag: v1.1.0-rc2
-      - tag: v1.1.0-rc3
-      - branch: main
-        commit: 91ba954eac70e40d63b2678421e7197cd33e0f2e
   - name: runtime
-    remote: https://github.com/opencontainers/runtime-spec.git
+    remote: https://github.com/opencontainers/runtime-spec
     releases:
       - tag: v1.0.0
       - tag: v1.0.1

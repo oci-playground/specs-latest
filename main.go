@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -63,14 +65,16 @@ func processConfig(config *specsConfig) {
 	gitWorkspace := filepath.Join(currentDir, "docs", "git-workspace")
 	log.Printf("ensuring git workspace directory %s", gitWorkspace)
 	os.MkdirAll(gitWorkspace, 0755)
-	s := `<html>
+	now := time.Now().Format("Mon Jan 02 15:04:05 2006")
+	s := fmt.Sprintf(`<html>
 <head>
 <title>OCI specs latest</title>
 </head>
 <body style="background:#e8e9ff;padding: 20px;font-family: monospace">
-<div style="width:100%px; max-width:700px;text-align:left;padding: 20px;border:1px solid #c7c2c2; background:white">
+<div style="width:100%%px; max-width:700px;text-align:left;padding: 20px;border:1px solid #c7c2c2; background:white">
 <h1>OCI specs latest</h1>
-`
+<p><b>last generated</b>: %s</p>
+`, now)
 	for _, spec := range config.Specs {
 		os.Chdir(gitWorkspace)
 		s += processSpec(&spec)
@@ -87,7 +91,7 @@ func processConfig(config *specsConfig) {
 }
 
 func processSpec(spec *specsConfigSpec) string {
-	s := fmt.Sprintf("<hr/><h2>%s</h2>\n", spec.Name)
+	s := fmt.Sprintf("<hr/><h2><a target=\"_blank\" href=\"%s\">%s</a></h2>\n", spec.Remote, spec.Name)
 	currentDir := absPath()
 	log.Printf("[%s] begin processing, https git remote: %s", spec.Name, spec.Remote)
 	base := strings.TrimSuffix(filepath.Base(spec.Remote), ".git")
@@ -114,13 +118,7 @@ func processSpec(spec *specsConfigSpec) string {
 				log.Fatalf("[%s] invalid config for release at index %d", spec.Name, i)
 			}
 		}
-		s += fmt.Sprintf("<li><div><h3>%s</h3><p>release date: TODO</p></div></li>\n", checkoutTarget)
-
-		specOutputDir := filepath.Join(specOutputParentDir, checkoutTarget)
-		if _, err := os.Stat(specOutputDir); !os.IsNotExist(err) {
-			log.Printf("[%s] output folder %s exists, skipping", spec.Name, specOutputDir)
-			continue
-		}
+		s += fmt.Sprintf("<li><div><h3><a target=\"_blank\" href=\"%s/tree/%s\">%s</a></h3>\n", spec.Remote, checkoutTarget, checkoutTarget)
 
 		log.Printf("[%s] changing dir to %s", spec.Name, currentDir)
 		os.Chdir(specWorkspace)
@@ -139,34 +137,74 @@ func processSpec(spec *specsConfigSpec) string {
 		if err := cmd.Run(); err != nil {
 			log.Fatalf("cmd.Run: %v", err)
 		}
-		log.Printf("[%s] running \"make docs\"", spec.Name)
 
-		// Ideally "make docs" should be all we need...
-		cmd = exec.Command("make", "docs")
-
-		// Various hacks for specific specs... DONT JUDGE ME
-		switch spec.Name {
-		case "image":
-			cmd = exec.Command("sh", "-c", fmt.Sprintf("cat Makefile | sed 's/-it/-i/g' | sed 's|-f gfm|-f gfm --metadata title=\"Open Container Initiative Image Format Specification\"|g' > Makefile.new && (make -f Makefile.new docs || (cd .tool/ && go get github.com/opencontainers/image-spec/specs-go@%s && cd ../ && make -f Makefile.new docs))", checkoutTarget))
-		case "distribution":
-			cmd = exec.Command("sh", "-c", fmt.Sprintf("cat Makefile | sed 's/-it/-i/g' | sed 's/go mod init \\&\\& \\\\/\\(rm -f go.* \\&\\& go mod init main \\)\\&\\& \\\\/g' | sed 's|-f gfm|-f gfm --metadata title=\"Open Container Initiative Distribution Specification\"|g'> Makefile.new && (make -f Makefile.new docs || (cd .tool/ && go get github.com/opencontainers/distribution-spec/specs-go@%s && cd ../ && make -f Makefile.new docs)) && rm -f output/.gitkeep", checkoutTarget))
-		case "runtime":
-			cmd = exec.Command("sh", "-c", fmt.Sprintf("cat Makefile | sed 's/-it/-i/g' | sed 's/go mod init \\\\/go mod init main \\\\/g' > Makefile.new && (make -f Makefile.new docs || (cd .tool/ && go get github.com/opencontainers/runtime-spec/specs-go@%s && cd ../ && make -f Makefile.new docs))", checkoutTarget))
-		}
-
-		cmd.Stdout = os.Stdout
+		// Get date
+		cmd = exec.Command("sh", "-c", "TZ=UTC0 git show --quiet --date=local --format=\"%cd\"")
+		out := new(bytes.Buffer)
+		cmd.Stdout = out
 		cmd.Stderr = os.Stderr
-		err := cmd.Run()
-		os.Remove("Makefile.new")
-		if err != nil {
+		if err := cmd.Run(); err != nil {
 			log.Fatalf("cmd.Run: %v", err)
 		}
+		s += fmt.Sprintf("<p><b>date:</b> %s</p>\n", out.String())
+		//s += "</div></li>\n"
 
-		// move the output contents
-		log.Printf("[%s] moving output/ to %s", spec.Name, specOutputDir)
-		if err := os.Rename("output/", specOutputDir); err != nil {
-			log.Fatalf("os.Rename: %v", err)
+		// Get commit
+		cmd = exec.Command("sh", "-c", "git log --pretty=format:'%H' -n 1")
+		out = new(bytes.Buffer)
+		cmd.Stdout = out
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("cmd.Run: %v", err)
 		}
+		s += fmt.Sprintf("<p><b>commit:</b> <a target=\"_blank\" href=\"%s/commit/%s\">%s</a></p>\n", spec.Remote, out.String(), out.String())
+
+		specOutputDir := filepath.Join(specOutputParentDir, checkoutTarget)
+		if _, err := os.Stat(specOutputDir); !os.IsNotExist(err) {
+			log.Printf("[%s] output folder %s exists, skipping", spec.Name, specOutputDir)
+		} else {
+
+			log.Printf("[%s] running \"make docs\"", spec.Name)
+
+			// Ideally "make docs" should be all we need...
+			cmd = exec.Command("make", "docs")
+
+			// Various hacks for specific specs... DONT JUDGE ME
+			switch spec.Name {
+			case "image":
+				cmd = exec.Command("sh", "-c", fmt.Sprintf("cat Makefile | sed 's/-it/-i/g' | sed 's|-f gfm|-f gfm --metadata title=\"Open Container Initiative Image Format Specification\"|g' > Makefile.new && (make -f Makefile.new docs || (cd .tool/ && go get github.com/opencontainers/image-spec/specs-go@%s && cd ../ && make -f Makefile.new docs))", checkoutTarget))
+			case "distribution":
+				cmd = exec.Command("sh", "-c", fmt.Sprintf("cat Makefile | sed 's/-it/-i/g' | sed 's/go mod init \\&\\& \\\\/\\(rm -f go.* \\&\\& go mod init main \\)\\&\\& \\\\/g' | sed 's|-f gfm|-f gfm --metadata title=\"Open Container Initiative Distribution Specification\"|g'> Makefile.new && (make -f Makefile.new docs || (cd .tool/ && go get github.com/opencontainers/distribution-spec/specs-go@%s && cd ../ && make -f Makefile.new docs)) && rm -f output/.gitkeep", checkoutTarget))
+			case "runtime":
+				cmd = exec.Command("sh", "-c", fmt.Sprintf("cat Makefile | sed 's/-it/-i/g' | sed 's/go mod init \\\\/go mod init main \\\\/g' > Makefile.new && (make -f Makefile.new docs || (cd .tool/ && go get github.com/opencontainers/runtime-spec/specs-go@%s && cd ../ && make -f Makefile.new docs))", checkoutTarget))
+			}
+
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			err := cmd.Run()
+			os.Remove("Makefile.new")
+			if err != nil {
+				log.Fatalf("cmd.Run: %v", err)
+			}
+
+			// move the output contents
+			log.Printf("[%s] moving output/ to %s", spec.Name, specOutputDir)
+			if err := os.Rename("output/", specOutputDir); err != nil {
+				log.Fatalf("os.Rename: %v", err)
+			}
+
+		}
+
+		s += "<p><b>build assets:</b>\n"
+		entries, err := os.ReadDir(specOutputDir)
+		if err != nil {
+			log.Fatalf("os.ReadDir: %v", err)
+		}
+		for _, e := range entries {
+			s += fmt.Sprintf("<span>[<a target=\"_blank\" href=\"specs/%s/%s/%s\">%s</a>]</span> \n", spec.Name, checkoutTarget, filepath.Base(e.Name()), filepath.Base(e.Name()))
+		}
+
+		s += "</div></li>\n"
 	}
 	s += "</ul>"
 	log.Printf("[%s] changing dir to %s", spec.Name, currentDir)
