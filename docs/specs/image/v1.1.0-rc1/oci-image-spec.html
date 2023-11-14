@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Open Container Initiative Image Format Specification</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <title>image-spec 1.1.0-rc1</title>
+  <base href="https://raw.githubusercontent.com/opencontainers/image-spec/1.1.0-rc1/">
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Open Container Initiative Image Format Specification</h1>
+</header>
+<h1 id="open-container-initiative">Open Container Initiative</h1>
+<h2 id="image-format-specification">Image Format Specification</h2>
+<p>This specification defines an OCI Image, consisting of an <a href="manifest.md">image manifest</a>, an <a href="image-index.md">image index</a> (optional), a set of <a href="layer.md">filesystem layers</a>, and a <a href="config.md">configuration</a>.</p>
+<p>The goal of this specification is to enable the creation of interoperable tools for building, transporting, and preparing a container image to run.</p>
+<h3 id="table-of-contents">Table of Contents</h3>
+<ul>
+<li><a href="#notational-conventions">Notational Conventions</a></li>
+<li><a href="#overview">Overview</a>
+<ul>
+<li><a href="#understanding-the-specification">Understanding the Specification</a></li>
+<li><a href="media-types.md">Media Types</a></li>
+</ul></li>
+<li><a href="descriptor.md">Content Descriptors</a></li>
+<li><a href="image-layout.md">Image Layout</a></li>
+<li><a href="manifest.md">Image Manifest</a></li>
+<li><a href="image-index.md">Image Index</a></li>
+<li><a href="layer.md">Filesystem Layers</a></li>
+<li><a href="config.md">Image Configuration</a></li>
+<li><a href="annotations.md">Annotations</a></li>
+<li><a href="conversion.md">Conversion</a></li>
+<li><a href="considerations.md">Considerations</a>
+<ul>
+<li><a href="considerations.md#extensibility">Extensibility</a></li>
+<li><a href="considerations.md#canonicalization">Canonicalization</a></li>
+</ul></li>
+</ul>
+<h2 id="notational-conventions">Notational Conventions</h2>
+<p>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" are to be interpreted as described in <a href="https://tools.ietf.org/html/rfc2119">RFC 2119</a> (Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997).</p>
+<p>The key words "unspecified", "undefined", and "implementation-defined" are to be interpreted as described in the <a href="https://www.open-std.org/jtc1/sc22/wg14/www/C99RationaleV5.10.pdf#page=18">rationale for the C99 standard</a>.</p>
+<p>An implementation is not compliant if it fails to satisfy one or more of the MUST, MUST NOT, REQUIRED, SHALL, or SHALL NOT requirements for the protocols it implements. An implementation is compliant if it satisfies all the MUST, MUST NOT, REQUIRED, SHALL, and SHALL NOT requirements for the protocols it implements.</p>
+<h2 id="overview">Overview</h2>
+<p>At a high level the image manifest contains metadata about the contents and dependencies of the image including the content-addressable identity of one or more <a href="layer.md">filesystem layer changeset</a> archives that will be unpacked to make up the final runnable filesystem. The image configuration includes information such as application arguments, environments, etc. The image index is a higher-level manifest which points to a list of manifests and descriptors. Typically, these manifests may provide different implementations of the image, possibly varying by platform or other attributes.</p>
+<p><img src="img/build-diagram.png" alt="build diagram" /></p>
+<p>Once built the OCI Image can then be discovered by name, downloaded, verified by hash, trusted through a signature, and unpacked into an <a href="https://github.com/opencontainers/runtime-spec/blob/master/bundle.md">OCI Runtime Bundle</a>.</p>
+<p><img src="img/run-diagram.png" alt="runtime diagram" /></p>
+<h3 id="understanding-the-specification">Understanding the Specification</h3>
+<p>The <a href="media-types.md">OCI Image Media Types</a> document is a starting point to understanding the overall structure of the specification.</p>
+<p>The high-level components of the spec include:</p>
+<ul>
+<li><a href="manifest.md">Image Manifest</a> - a document describing the components that make up a container image</li>
+<li><a href="image-index.md">Image Index</a> - an annotated list of manifests</li>
+<li><a href="artifact.md">Artifact Manifest</a> - a document describing the components that make up an artifact</li>
+<li><a href="image-layout.md">Image Layout</a> - a filesystem layout representing the contents of an image</li>
+<li><a href="layer.md">Filesystem Layer</a> - a changeset that describes a container's filesystem</li>
+<li><a href="config.md">Image Configuration</a> - a document determining layer ordering and configuration of the image suitable for translation into a <a href="https://github.com/opencontainers/runtime-spec">runtime bundle</a></li>
+<li><a href="conversion.md">Conversion</a> - a document describing how this translation should occur</li>
+<li><a href="descriptor.md">Descriptor</a> - a reference that describes the type, metadata and content address of referenced content</li>
+</ul>
+<p>Future versions of this specification may include the following OPTIONAL features:</p>
+<ul>
+<li>Signatures that are based on signing image content address</li>
+<li>Naming that is federated based on DNS and can be delegated</li>
+</ul>
+<h1 id="oci-image-media-types">OCI Image Media Types</h1>
+<p>The following media types identify the formats described here and their referenced resources:</p>
+<ul>
+<li><code>application/vnd.oci.descriptor.v1+json</code>: <a href="descriptor.md">Content Descriptor</a></li>
+<li><code>application/vnd.oci.layout.header.v1+json</code>: <a href="image-layout.md#oci-layout-file">OCI Layout</a></li>
+<li><code>application/vnd.oci.image.index.v1+json</code>: <a href="image-index.md">Image Index</a></li>
+<li><code>application/vnd.oci.image.manifest.v1+json</code>: <a href="manifest.md#image-manifest">Image manifest</a></li>
+<li><code>application/vnd.oci.image.config.v1+json</code>: <a href="config.md">Image config</a></li>
+<li><code>application/vnd.oci.image.layer.v1.tar</code>: <a href="layer.md">"Layer", as a tar archive</a></li>
+<li><code>application/vnd.oci.image.layer.v1.tar+gzip</code>: <a href="layer.md#gzip-media-types">"Layer", as a tar archive</a> compressed with <a href="https://tools.ietf.org/html/rfc1952">gzip</a></li>
+<li><code>application/vnd.oci.image.layer.v1.tar+zstd</code>: <a href="layer.md#zstd-media-types">"Layer", as a tar archive</a> compressed with <a href="https://tools.ietf.org/html/rfc8478">zstd</a></li>
+<li><code>application/vnd.oci.image.layer.nondistributable.v1.tar</code>: <a href="layer.md#non-distributable-layers">"Layer", as a tar archive with distribution restrictions</a></li>
+<li><code>application/vnd.oci.image.layer.nondistributable.v1.tar+gzip</code>: <a href="layer.md#gzip-media-types">"Layer", as a tar archive with distribution restrictions</a> compressed with <a href="https://tools.ietf.org/html/rfc1952">gzip</a></li>
+<li><code>application/vnd.oci.image.layer.nondistributable.v1.tar+zstd</code>: <a href="layer.md#zstd-media-types">"Layer", as a tar archive with distribution restrictions</a> compressed with <a href="https://tools.ietf.org/html/rfc8478">zstd</a></li>
+<li><code>application/vnd.oci.artifact.manifest.v1+json</code>: <a href="artifact.md">Artifact manifest</a></li>
+</ul>
+<h2 id="media-type-conflicts">Media Type Conflicts</h2>
+<p><a href="image-layout.md">Blob</a> retrieval methods MAY return media type metadata. For example, a HTTP response might return a manifest with the Content-Type header set to <code>application/vnd.oci.image.manifest.v1+json</code>. Implementations MAY also have expectations for the blob's media type and digest (e.g. from a <a href="descriptor.md">descriptor</a> referencing the blob).</p>
+<ul>
+<li>Implementations that do not have an expected media type for the blob SHOULD respect the returned media type.</li>
+<li>Implementations that have an expected media type which matches the returned media type SHOULD respect the matched media type.</li>
+<li>Implementations that have an expected media type which does not match the returned media type SHOULD:
+<ul>
+<li>Respect the expected media type if the blob matches the expected digest. Implementations MAY warn about the media type mismatch.</li>
+<li>Return an error if the blob does not match the expected digest (as <a href="descriptor.md#properties">recommended for descriptors</a>).</li>
+<li>Return an error if they do not have an expected digest.</li>
+</ul></li>
+</ul>
+<h2 id="compatibility-matrix">Compatibility Matrix</h2>
+<p>The OCI Image Specification strives to be backwards and forwards compatible when possible. Breaking compatibility with existing systems creates a burden on users whether they are build systems, distribution systems, container engines, etc. This section shows where the OCI Image Specification is compatible with formats external to the OCI Image and different versions of this specification.</p>
+<h3 id="applicationvndociimageindexv1json">application/vnd.oci.image.index.v1+json</h3>
+<p><strong>Similar/related schema</strong></p>
+<ul>
+<li><a href="https://github.com/distribution/distribution/blob/master/docs/spec/manifest-v2-2.md#manifest-list">application/vnd.docker.distribution.manifest.list.v2+json</a>
+<ul>
+<li><code>.annotations</code>: only present in OCI</li>
+<li><code>.[]manifests.annotations</code>: only present in OCI</li>
+<li><code>.[]manifests.urls</code>: only present in OCI</li>
+</ul></li>
+</ul>
+<h3 id="applicationvndociimagemanifestv1json">application/vnd.oci.image.manifest.v1+json</h3>
+<p><strong>Similar/related schema</strong></p>
+<ul>
+<li><a href="https://github.com/distribution/distribution/blob/master/docs/spec/manifest-v2-2.md#image-manifest-field-descriptions">application/vnd.docker.distribution.manifest.v2+json</a>
+<ul>
+<li><code>.annotations</code>: only present in OCI</li>
+<li><code>.config.annotations</code>: only present in OCI</li>
+<li><code>.config.urls</code>: only present in OCI</li>
+<li><code>.[]layers.annotations</code>: only present in OCI</li>
+</ul></li>
+</ul>
+<h3 id="applicationvndociimagelayerv1targzip">application/vnd.oci.image.layer.v1.tar+gzip</h3>
+<p><strong>Interchangeable and fully compatible mime-types</strong></p>
+<ul>
+<li><a href="https://github.com/moby/moby/blob/v20.10.8/image/spec/v1.2.md#creating-an-image-filesystem-changeset">application/vnd.docker.image.rootfs.diff.tar.gzip</a></li>
+</ul>
+<h3 id="applicationvndociimageconfigv1json">application/vnd.oci.image.config.v1+json</h3>
+<p><strong>Similar/related schema</strong></p>
+<ul>
+<li><a href="https://github.com/moby/moby/blob/v20.10.8/image/spec/v1.2.md#image-json-description">application/vnd.docker.container.image.v1+json</a> (Docker Image Spec v1.2)
+<ul>
+<li><code>.config.Memory</code>: only present in Docker, and reserved in OCI</li>
+<li><code>.config.MemorySwap</code>: only present in Docker, and reserved in OCI</li>
+<li><code>.config.CpuShares</code>: only present in Docker, and reserved in OCI</li>
+<li><code>.config.Healthcheck</code>: only present in Docker, and reserved in OCI</li>
+</ul></li>
+</ul>
+<p><code>.config.StopSignal</code> and <code>.config.Labels</code> are accidentally undocumented in Docker Image Spec v1.2, but these fields are not OCI-specific concepts.</p>
+<h2 id="relations">Relations</h2>
+<p>The following figure shows how the above media types reference each other:</p>
+<p><img src="img/media-types.png" /></p>
+<p><a href="descriptor.md">Descriptors</a> are used for all references. The image-index being a "fat manifest" references a list of image manifests per target platform. An image manifest references exactly one target configuration and possibly many layers.</p>
+<h1 id="oci-content-descriptors">OCI Content Descriptors</h1>
+<ul>
+<li>An OCI image consists of several different components, arranged in a <a href="https://en.wikipedia.org/wiki/Merkle_tree">Merkle Directed Acyclic Graph (DAG)</a>.</li>
+<li>References between components in the graph are expressed through <em>Content Descriptors</em>.</li>
+<li>A Content Descriptor (or simply <em>Descriptor</em>) describes the disposition of the targeted content.</li>
+<li>A Content Descriptor includes the type of the content, a content identifier (<em>digest</em>), and the byte-size of the raw content. Optionally, it includes the type of artifact it is describing.</li>
+<li>Descriptors SHOULD be embedded in other formats to securely reference external content.</li>
+<li>Other formats SHOULD use descriptors to securely reference external content.</li>
+</ul>
+<p>This section defines the <code>application/vnd.oci.descriptor.v1+json</code> <a href="media-types.md">media type</a>.</p>
+<h2 id="properties">Properties</h2>
+<p>A descriptor consists of a set of properties encapsulated in key-value fields.</p>
+<p>The following fields contain the primary properties that constitute a Descriptor:</p>
+<ul>
+<li><p><strong><code>mediaType</code></strong> <em>string</em></p>
+<p>This REQUIRED property contains the media type of the referenced content. Values MUST comply with <a href="https://tools.ietf.org/html/rfc6838">RFC 6838</a>, including the <a href="https://tools.ietf.org/html/rfc6838#section-4.2">naming requirements in its section 4.2</a>.</p>
+<p>The OCI image specification defines <a href="media-types.md">several of its own MIME types</a> for resources defined in the specification.</p></li>
+<li><p><strong><code>digest</code></strong> <em>string</em></p>
+<p>This REQUIRED property is the <em>digest</em> of the targeted content, conforming to the requirements outlined in <a href="#digests">Digests</a>. Retrieved content SHOULD be verified against this digest when consumed via untrusted sources.</p></li>
+<li><p><strong><code>size</code></strong> <em>int64</em></p>
+<p>This REQUIRED property specifies the size, in bytes, of the raw content. This property exists so that a client will have an expected size for the content before processing. If the length of the retrieved content does not match the specified length, the content SHOULD NOT be trusted.</p></li>
+<li><p><strong><code>urls</code></strong> <em>array of strings</em></p>
+<p>This OPTIONAL property specifies a list of URIs from which this object MAY be downloaded. Each entry MUST conform to <a href="https://tools.ietf.org/html/rfc3986">RFC 3986</a>. Entries SHOULD use the <code>http</code> and <code>https</code> schemes, as defined in <a href="https://tools.ietf.org/html/rfc7230#section-2.7">RFC 7230</a>.</p></li>
+<li><p><strong><code>annotations</code></strong> <em>string-string map</em></p>
+<p>This OPTIONAL property contains arbitrary metadata for this descriptor. This OPTIONAL property MUST use the <a href="annotations.md#rules">annotation rules</a>.</p></li>
+<li><p><strong><code>data</code></strong> <em>string</em></p>
+<p>This OPTIONAL property contains an embedded representation of the referenced content. Values MUST conform to the Base 64 encoding, as defined in <a href="https://tools.ietf.org/html/rfc4648#section-4">RFC 4648</a>. The decoded data MUST be identical to the referenced content and SHOULD be verified against the <a href="#digests"><code>digest</code></a> and <code>size</code> fields by content consumers. See <a href="#embedded-content">Embedded Content</a> for when this is appropriate.</p></li>
+<li><p><strong><code>artifactType</code></strong> <em>string</em></p>
+<p>This OPTIONAL property contains the type of an artifact when the descriptor points to an artifact. This is the value of <code>artifactType</code> when the descriptor references an <a href="artifact.md">artifact manifest</a>. This is the value of the config descriptor <code>mediaType</code> when the descriptor references an <a href="manifest.md">image manifest</a>.</p></li>
+</ul>
+<p>Descriptors pointing to <a href="manifest.md"><code>application/vnd.oci.image.manifest.v1+json</code></a> SHOULD include the extended field <code>platform</code>, see <a href="image-index.md#image-index-property-descriptions">Image Index Property Descriptions</a> for details.</p>
+<p>Descriptors pointing to <a href="artifact.md"><code>application/vnd.oci.artifact.manifest.v1+json</code></a> SHOULD include the extended field <code>artifactType</code>.</p>
+<h3 id="reserved">Reserved</h3>
+<p>Extended <em>Descriptor</em> field additions proposed in other OCI specifications SHOULD first be considered for addition into this specification.</p>
+<h2 id="digests">Digests</h2>
+<p>The <em>digest</em> property of a Descriptor acts as a content identifier, enabling <a href="https://en.wikipedia.org/wiki/Content-addressable_storage">content addressability</a>. It uniquely identifies content by taking a <a href="https://en.wikipedia.org/wiki/Cryptographic_hash_function">collision-resistant hash</a> of the bytes. If the <em>digest</em> can be communicated in a secure manner, one can verify content from an insecure source by recalculating the digest independently, ensuring the content has not been modified.</p>
+<p>The value of the <code>digest</code> property is a string consisting of an <em>algorithm</em> portion and an <em>encoded</em> portion. The <em>algorithm</em> specifies the cryptographic hash function and encoding used for the digest; the <em>encoded</em> portion contains the encoded result of the hash function.</p>
+<p>A digest string MUST match the following <a href="considerations.md#ebnf">grammar</a>:</p>
+<pre class="ebnf"><code>digest                ::= algorithm &quot;:&quot; encoded
+algorithm             ::= algorithm-component (algorithm-separator algorithm-component)*
+algorithm-component   ::= [a-z0-9]+
+algorithm-separator   ::= [+._-]
+encoded               ::= [a-zA-Z0-9=_-]+
+</code></pre>
+<p>Note that <em>algorithm</em> MAY impose algorithm-specific restriction on the grammar of the <em>encoded</em> portion. See also <a href="#registered-algorithms">Registered Algorithms</a>.</p>
+<p>Some example digest strings include the following:</p>
+<table>
+<thead>
+<tr class="header">
+<th>digest</th>
+<th>algorithm</th>
+<th>Registered</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sha256:6c3c624b58dbbcd3c0dd82b4c53f04194d1247c6eebdaab7c610cf7d66709b3b</code></td>
+<td><a href="#sha-256">SHA-256</a></td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td><code>sha512:401b09eab3c013d4ca54922bb802bec8fd5318192b0a75f201d8b372742...</code></td>
+<td><a href="#sha-512">SHA-512</a></td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td><code>multihash+base58:QmRZxt2b1FVZPNqd8hsiykDL3TdBDeTSPX9Kv46HmX4Gx8</code></td>
+<td>Multihash</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td><code>sha256+b64u:LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564</code></td>
+<td>SHA-256 with urlsafe base64</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>Please see <a href="#registered-algorithms">Registered Algorithms</a> for a list of registered algorithms.</p>
+<p>Implementations SHOULD allow digests with unrecognized algorithms to pass validation if they comply with the above grammar. While <code>sha256</code> will only use hex encoded digests, separators in <em>algorithm</em> and alphanumerics in <em>encoded</em> are included to allow for extensions. As an example, we can parameterize the encoding and algorithm as <code>multihash+base58:QmRZxt2b1FVZPNqd8hsiykDL3TdBDeTSPX9Kv46HmX4Gx8</code>, which would be considered valid but unregistered by this specification.</p>
+<h3 id="verification">Verification</h3>
+<p>Before consuming content targeted by a descriptor from untrusted sources, the byte content SHOULD be verified against the digest string. Before calculating the digest, the size of the content SHOULD be verified to reduce hash collision space. Heavy processing before calculating a hash SHOULD be avoided. Implementations MAY employ <a href="considerations.md#canonicalization">canonicalization</a> of the underlying content to ensure stable content identifiers.</p>
+<h3 id="digest-calculations">Digest calculations</h3>
+<p>A <em>digest</em> is calculated by the following pseudo-code, where <code>H</code> is the selected hash algorithm, identified by string <code>&lt;alg&gt;</code>:</p>
+<pre class="text"><code>let ID(C) = Descriptor.digest
+let C = &lt;bytes&gt;
+let D = &#39;&lt;alg&gt;:&#39; + Encode(H(C))
+let verified = ID(C) == D
+</code></pre>
+<p>Above, we define the content identifier as <code>ID(C)</code>, extracted from the <code>Descriptor.digest</code> field. Content <code>C</code> is a string of bytes. Function <code>H</code> returns the hash of <code>C</code> in bytes and is passed to function <code>Encode</code> and prefixed with the algorithm to obtain the digest. The result <code>verified</code> is true if <code>ID(C)</code> is equal to <code>D</code>, confirming that <code>C</code> is the content identified by <code>D</code>. After verification, the following is true:</p>
+<pre><code>D == ID(C) == &#39;&lt;alg&gt;:&#39; + Encode(H(C))
+</code></pre>
+<p>The <em>digest</em> is confirmed as the content identifier by independently calculating the <em>digest</em>.</p>
+<h3 id="registered-algorithms">Registered algorithms</h3>
+<p>While the <em>algorithm</em> component of the digest string allows the use of a variety of cryptographic algorithms, compliant implementations SHOULD use <a href="#sha-256">SHA-256</a>.</p>
+<p>The following algorithm identifiers are currently defined by this specification:</p>
+<table>
+<thead>
+<tr class="header">
+<th>algorithm identifier</th>
+<th>algorithm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sha256</code></td>
+<td><a href="#sha-256">SHA-256</a></td>
+</tr>
+<tr class="even">
+<td><code>sha512</code></td>
+<td><a href="#sha-512">SHA-512</a></td>
+</tr>
+</tbody>
+</table>
+<p>If a useful algorithm is not included in the above table, it SHOULD be submitted to this specification for registration.</p>
+<h4 id="sha-256">SHA-256</h4>
+<p><a href="https://tools.ietf.org/html/rfc4634#section-4.1">SHA-256</a> is a collision-resistant hash function, chosen for ubiquity, reasonable size and secure characteristics. Implementations MUST implement SHA-256 digest verification for use in descriptors.</p>
+<p>When the <em>algorithm identifier</em> is <code>sha256</code>, the <em>encoded</em> portion MUST match <code>/[a-f0-9]{64}/</code>. Note that <code>[A-F]</code> MUST NOT be used here.</p>
+<h4 id="sha-512">SHA-512</h4>
+<p><a href="https://tools.ietf.org/html/rfc4634#section-4.2">SHA-512</a> is a collision-resistant hash function which <a href="https://groups.google.com/a/opencontainers.org/forum/#!topic/dev/hsMw7cAwrZE">may be more performant</a> than <a href="#sha-256">SHA-256</a> on some CPUs. Implementations MAY implement SHA-512 digest verification for use in descriptors.</p>
+<p>When the <em>algorithm identifier</em> is <code>sha512</code>, the <em>encoded</em> portion MUST match <code>/[a-f0-9]{128}/</code>. Note that <code>[A-F]</code> MUST NOT be used here.</p>
+<h2 id="embedded-content">Embedded Content</h2>
+<p>In many contexts, such as when downloading content over a network, resolving a descriptor to its content has a measurable fixed "roundtrip" latency cost. For large blobs, the fixed cost is usually inconsequential, as the majority of time will be spent actually fetching the content. For very small blobs, the fixed cost can be quite significant.</p>
+<p>Implementations MAY choose to embed small pieces of content directly within a descriptor to avoid roundtrips.</p>
+<p>Implementations MUST NOT populate the <code>data</code> field in situations where doing so would modify existing content identifiers. For example, a registry MUST NOT arbitrarily populate <code>data</code> fields within uploaded manifests, as that would modify the content identifier of those manifests. In contrast, a client MAY populate the <code>data</code> field before uploading a manifest, because the manifest would not yet have a content identifier in the registry.</p>
+<p>Implementations SHOULD consider portability when deciding whether to embed data, as some providers are known to refuse to accept or parse manifests that exceed a certain size.</p>
+<h2 id="examples">Examples</h2>
+<p>The following example describes a <a href="manifest.md#image-manifest"><em>Manifest</em></a> with a content identifier of "sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270" and a size of 7682 bytes:</p>
+<pre class="json,title=Content%20Descriptor&amp;mediatype=application/vnd.oci.descriptor.v1%2Bjson"><code>{
+  &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+  &quot;size&quot;: 7682,
+  &quot;digest&quot;: &quot;sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270&quot;
+}
+</code></pre>
+<p>In the following example, the descriptor indicates that the referenced manifest is retrievable from a particular URL:</p>
+<pre class="json,title=Content%20Descriptor&amp;mediatype=application/vnd.oci.descriptor.v1%2Bjson"><code>{
+  &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+  &quot;size&quot;: 7682,
+  &quot;digest&quot;: &quot;sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270&quot;,
+  &quot;urls&quot;: [
+    &quot;https://example.com/example-manifest&quot;
+  ]
+}
+</code></pre>
+<p>In the following example, the descriptor indicates the type of artifact it is referencing:</p>
+<pre class="json,title=Content%20Descriptor&amp;mediatype=application/vnd.oci.descriptor.v1%2Bjson"><code>{
+  &quot;mediaType&quot;: &quot;application/vnd.oci.artifact.manifest.v1+json&quot;,
+  &quot;size&quot;: 123,
+  &quot;digest&quot;: &quot;sha256:87923725d74f4bfb94c9e86d64170f7521aad8221a5de834851470ca142da630&quot;,
+  &quot;artifactType&quot;: &quot;application/vnd.example.sbom.v1&quot;
+}
+</code></pre>
+<h2 id="oci-image-layout-specification">OCI Image Layout Specification</h2>
+<ul>
+<li>The OCI Image Layout is the directory structure for OCI content-addressable blobs and <a href="https://en.wikipedia.org/wiki/Content-addressable_storage#Content-addressed_vs._location-addressed">location-addressable</a> references (refs).</li>
+<li>This layout MAY be used in a variety of different transport mechanisms: archive formats (e.g. tar, zip), shared filesystem environments (e.g. nfs), or networked file fetching (e.g. http, ftp, rsync).</li>
+</ul>
+<p>Given an image layout and a ref, a tool can create an <a href="https://github.com/opencontainers/runtime-spec/blob/v1.0.0/bundle.md">OCI Runtime Specification bundle</a> by:</p>
+<ul>
+<li>Following the ref to find a <a href="manifest.md#image-manifest">manifest</a>, possibly via an <a href="image-index.md">image index</a></li>
+<li><a href="layer.md#applying">Applying the filesystem layers</a> in the specified order</li>
+<li>Converting the <a href="config.md">image configuration</a> into an <a href="https://github.com/opencontainers/runtime-spec/blob/v1.0.0/config.md">OCI Runtime Specification <code>config.json</code></a></li>
+</ul>
+<h1 id="content">Content</h1>
+<p>The image layout is as follows:</p>
+<ul>
+<li><code>blobs</code> directory
+<ul>
+<li>Contains content-addressable blobs</li>
+<li>A blob has no schema and SHOULD be considered opaque</li>
+<li>Directory MUST exist and MAY be empty</li>
+<li>See <a href="#blobs">blobs</a> section</li>
+</ul></li>
+<li><code>oci-layout</code> file
+<ul>
+<li>It MUST exist</li>
+<li>It MUST be a JSON object</li>
+<li>It MUST contain an <code>imageLayoutVersion</code> field</li>
+<li>See <a href="#oci-layout-file">oci-layout file</a> section</li>
+<li>It MAY include additional fields</li>
+</ul></li>
+<li><code>index.json</code> file
+<ul>
+<li>It MUST exist</li>
+<li>It MUST be an <a href="image-index.md">image index</a> JSON object.</li>
+<li>See <a href="#indexjson-file">index.json</a> section</li>
+</ul></li>
+</ul>
+<h2 id="example-layout">Example Layout</h2>
+<p>This is an example image layout:</p>
+<pre><code>$ cd example.com/app/
+$ find . -type f
+./index.json
+./oci-layout
+./blobs/sha256/3588d02542238316759cbf24502f4344ffcc8a60c803870022f335d1390c13b4
+./blobs/sha256/4b0bc1c4050b03c95ef2a8e36e25feac42fd31283e8c30b3ee5df6b043155d3c
+./blobs/sha256/7968321274dc6b6171697c33df7815310468e694ac5be0ec03ff053bb135e768
+</code></pre>
+<p>Blobs are named by their contents:</p>
+<pre><code>$ shasum -a 256 ./blobs/sha256/afff3924849e458c5ef237db5f89539274d5e609db5db935ed3959c90f1f2d51
+afff3924849e458c5ef237db5f89539274d5e609db5db935ed3959c90f1f2d51 ./blobs/sha256/afff3924849e458c5ef237db5f89539274d5e609db5db935ed3959c90f1f2d51
+</code></pre>
+<h2 id="blobs">Blobs</h2>
+<ul>
+<li>Object names in the <code>blobs</code> subdirectories are composed of a directory for each hash algorithm, the children of which will contain the actual content.</li>
+<li>The content of <code>blobs/&lt;alg&gt;/&lt;encoded&gt;</code> MUST match the digest <code>&lt;alg&gt;:&lt;encoded&gt;</code> (referenced per <a href="descriptor.md#digests">descriptor</a>). For example, the content of <code>blobs/sha256/da39a3ee5e6b4b0d3255bfef95601890afd80709</code> MUST match the digest <code>sha256:da39a3ee5e6b4b0d3255bfef95601890afd80709</code>.</li>
+<li>The character set of the entry name for <code>&lt;alg&gt;</code> and <code>&lt;encoded&gt;</code> MUST match the respective grammar elements described in <a href="descriptor.md#digests">descriptor</a>.</li>
+<li>The blobs directory MAY contain blobs which are not referenced by any of the <a href="#indexjson-file">refs</a>.</li>
+<li>The blobs directory MAY be missing referenced blobs, in which case the missing blobs SHOULD be fulfilled by an external blob store.</li>
+</ul>
+<h3 id="example-blobs">Example Blobs</h3>
+<pre><code>$ cat ./blobs/sha256/9b97579de92b1c195b85bb42a11011378ee549b02d7fe9c17bf2a6b35d5cb079 | jq
+{
+  &quot;schemaVersion&quot;: 2,
+  &quot;manifests&quot;: [
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+      &quot;size&quot;: 7143,
+      &quot;digest&quot;: &quot;sha256:afff3924849e458c5ef237db5f89539274d5e609db5db935ed3959c90f1f2d51&quot;,
+      &quot;platform&quot;: {
+        &quot;architecture&quot;: &quot;ppc64le&quot;,
+        &quot;os&quot;: &quot;linux&quot;
+      }
+    },
+...
+</code></pre>
+<pre><code>$ cat ./blobs/sha256/afff3924849e458c5ef237db5f89539274d5e609db5db935ed3959c90f1f2d51 | jq
+{
+  &quot;schemaVersion&quot;: 2,
+  &quot;config&quot;: {
+    &quot;mediaType&quot;: &quot;application/vnd.oci.image.config.v1+json&quot;,
+    &quot;size&quot;: 7023,
+    &quot;digest&quot;: &quot;sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270&quot;
+  },
+  &quot;layers&quot;: [
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;,
+      &quot;size&quot;: 32654,
+      &quot;digest&quot;: &quot;sha256:9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0&quot;
+    },
+...
+</code></pre>
+<pre><code>$ cat ./blobs/sha256/5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270 | jq
+{
+  &quot;architecture&quot;: &quot;amd64&quot;,
+  &quot;author&quot;: &quot;Alyssa P. Hacker &lt;alyspdev@example.com&gt;&quot;,
+  &quot;config&quot;: {
+    &quot;Hostname&quot;: &quot;8dfe43d80430&quot;,
+    &quot;Domainname&quot;: &quot;&quot;,
+    &quot;User&quot;: &quot;&quot;,
+    &quot;AttachStdin&quot;: false,
+    &quot;AttachStdout&quot;: false,
+    &quot;AttachStderr&quot;: false,
+    &quot;Tty&quot;: false,
+    &quot;OpenStdin&quot;: false,
+    &quot;StdinOnce&quot;: false,
+    &quot;Env&quot;: [
+      &quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;
+    ],
+    &quot;Cmd&quot;: null,
+    &quot;Image&quot;: &quot;sha256:6986ae504bbf843512d680cc959484452034965db15f75ee8bdd1b107f61500b&quot;,
+...
+</code></pre>
+<pre><code>$ cat ./blobs/sha256/9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0
+[gzipped tar stream]
+</code></pre>
+<h2 id="oci-layout-file">oci-layout file</h2>
+<p>This JSON object serves as a marker for the base of an Open Container Image Layout and to provide the version of the image-layout in use. The <code>imageLayoutVersion</code> value will align with the OCI Image Specification version at the time changes to the layout are made, and will pin a given version until changes to the image layout are required. This section defines the <code>application/vnd.oci.layout.header.v1+json</code> <a href="media-types.md">media type</a>.</p>
+<h3 id="oci-layout-example">oci-layout Example</h3>
+<pre class="json,title=OCI%20Layout&amp;mediatype=application/vnd.oci.layout.header.v1%2Bjson"><code>{
+    &quot;imageLayoutVersion&quot;: &quot;1.0.0&quot;
+}
+</code></pre>
+<h2 id="indexjson-file">index.json file</h2>
+<p>This REQUIRED file is the entry point for references and descriptors of the image-layout. The <a href="image-index.md">image index</a> is a multi-descriptor entry point.</p>
+<p>This index provides an established path (<code>/index.json</code>) to have an entry point for an image-layout and to discover auxiliary descriptors.</p>
+<ul>
+<li>No semantic restriction is given for the "org.opencontainers.image.ref.name" annotation of descriptors.</li>
+<li>In general the <code>mediaType</code> of each <a href="./descriptor.md">descriptor</a> object in the <code>manifests</code> field will be either <code>application/vnd.oci.image.index.v1+json</code> or <code>application/vnd.oci.image.manifest.v1+json</code>.</li>
+<li>Future versions of the spec MAY use a different mediatype (i.e. a new versioned format).</li>
+<li>An encountered <code>mediaType</code> that is unknown SHOULD be safely ignored.</li>
+</ul>
+<p><strong>Implementor's Note:</strong> A common use case of descriptors with a "org.opencontainers.image.ref.name" annotation is representing a "tag" for a container image. For example, an image may have a tag for different versions or builds of the software. In the wild you often see "tags" like "v1.0.0-vendor.0", "2.0.0-debug", etc. Those tags will often be represented in an image-layout repository with matching "org.opencontainers.image.ref.name" annotations like "v1.0.0-vendor.0", "2.0.0-debug", etc.</p>
+<h3 id="index-example">Index Example</h3>
+<pre class="json,title=Image%20Index&amp;mediatype=application/vnd.oci.image.index.v1%2Bjson"><code>{
+  &quot;schemaVersion&quot;: 2,
+  &quot;mediaType&quot;: &quot;application/vnd.oci.image.index.v1+json&quot;,
+  &quot;manifests&quot;: [
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.index.v1+json&quot;,
+      &quot;size&quot;: 7143,
+      &quot;digest&quot;: &quot;sha256:0228f90e926ba6b96e4f39cf294b2586d38fbb5a1e385c05cd1ee40ea54fe7fd&quot;,
+      &quot;annotations&quot;: {
+        &quot;org.opencontainers.image.ref.name&quot;: &quot;stable-release&quot;
+      }
+    },
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+      &quot;size&quot;: 7143,
+      &quot;digest&quot;: &quot;sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f&quot;,
+      &quot;platform&quot;: {
+        &quot;architecture&quot;: &quot;ppc64le&quot;,
+        &quot;os&quot;: &quot;linux&quot;
+      },
+      &quot;annotations&quot;: {
+        &quot;org.opencontainers.image.ref.name&quot;: &quot;v1.0&quot;
+      }
+    },
+    {
+      &quot;mediaType&quot;: &quot;application/xml&quot;,
+      &quot;size&quot;: 7143,
+      &quot;digest&quot;: &quot;sha256:b3d63d132d21c3ff4c35a061adf23cf43da8ae054247e32faa95494d904a007e&quot;,
+      &quot;annotations&quot;: {
+        &quot;org.freedesktop.specifications.metainfo.version&quot;: &quot;1.0&quot;,
+        &quot;org.freedesktop.specifications.metainfo.type&quot;: &quot;AppStream&quot;
+      }
+    }
+  ],
+  &quot;annotations&quot;: {
+    &quot;com.example.index.revision&quot;: &quot;r124356&quot;
+  }
+}
+</code></pre>
+<p>This illustrates an index that provides two named references and an auxiliary mediatype for this image layout.</p>
+<p>The first named reference (<code>stable-release</code>) points to another index that might contain multiple references with distinct platforms and annotations. Note that the <a href="annotations.md"><code>org.opencontainers.image.ref.name</code> annotation</a> SHOULD only be considered valid when on descriptors on <code>index.json</code>.</p>
+<p>The second named reference (<code>v1.0</code>) points to a manifest that is specific to the linux/ppc64le platform.</p>
+<h1 id="oci-image-manifest-specification">OCI Image Manifest Specification</h1>
+<p>There are three main goals of the Image Manifest Specification. The first goal is content-addressable images, by supporting an image model where the image's configuration can be hashed to generate a unique ID for the image and its components. The second goal is to allow multi-architecture images, through a "fat manifest" which references image manifests for platform-specific versions of an image. In OCI, this is codified in an <a href="image-index.md">image index</a>. The third goal is to be <a href="conversion.md">translatable</a> to the <a href="https://github.com/opencontainers/runtime-spec">OCI Runtime Specification</a>.</p>
+<p>This section defines the <code>application/vnd.oci.image.manifest.v1+json</code> <a href="media-types.md">media type</a>. For the media type(s) that this is compatible with see the <a href="media-types.md#compatibility-matrix">matrix</a>.</p>
+<h1 id="image-manifest">Image Manifest</h1>
+<p>Unlike the <a href="image-index.md">image index</a>, which contains information about a set of images that can span a variety of architectures and operating systems, an image manifest provides a configuration and set of layers for a single container image for a specific architecture and operating system.</p>
+<h2 id="image-manifest-property-descriptions"><em>Image Manifest</em> Property Descriptions</h2>
+<ul>
+<li><p><strong><code>schemaVersion</code></strong> <em>int</em></p>
+<p>This REQUIRED property specifies the image manifest schema version. For this version of the specification, this MUST be <code>2</code> to ensure backward compatibility with older versions of Docker. The value of this field will not change. This field MAY be removed in a future version of the specification.</p></li>
+<li><p><strong><code>mediaType</code></strong> <em>string</em></p>
+<p>This property SHOULD be used and <a href="media-types.md#compatibility-matrix">remain compatible</a> with earlier versions of this specification and with other similar external formats. When used, this field MUST contain the media type <code>application/vnd.oci.image.manifest.v1+json</code>. This field usage differs from the <a href="descriptor.md#properties">descriptor</a> use of <code>mediaType</code>.</p></li>
+<li><p><strong><code>config</code></strong> <em><a href="descriptor.md">descriptor</a></em></p>
+<p>This REQUIRED property references a configuration object for a container, by digest. Beyond the <a href="descriptor.md#properties">descriptor requirements</a>, the value has the following additional restrictions:</p>
+<ul>
+<li><p><strong><code>mediaType</code></strong> <em>string</em></p>
+<p>This <a href="descriptor.md#properties">descriptor property</a> has additional restrictions for <code>config</code>. Implementations MUST support at least the following media types:</p>
+<ul>
+<li><a href="config.md"><code>application/vnd.oci.image.config.v1+json</code></a></li>
+</ul>
+<p>Manifests concerned with portability SHOULD use one of the above media types.</p></li>
+</ul></li>
+<li><p><strong><code>layers</code></strong> <em>array of objects</em></p>
+<p>Each item in the array MUST be a <a href="descriptor.md">descriptor</a>. The array MUST have the base layer at index 0. Subsequent layers MUST then follow in stack order (i.e. from <code>layers[0]</code> to <code>layers[len(layers)-1]</code>). The final filesystem layout MUST match the result of <a href="layer.md#applying-changesets">applying</a> the layers to an empty directory. The <a href="layer.md#file-attributes">ownership, mode, and other attributes</a> of the initial empty directory are unspecified.</p>
+<p>Beyond the <a href="descriptor.md#properties">descriptor requirements</a>, the value has the following additional restrictions:</p>
+<ul>
+<li><p><strong><code>mediaType</code></strong> <em>string</em></p>
+<p>This <a href="descriptor.md#properties">descriptor property</a> has additional restrictions for <code>layers[]</code>. Implementations MUST support at least the following media types:</p>
+<ul>
+<li><a href="layer.md"><code>application/vnd.oci.image.layer.v1.tar</code></a></li>
+<li><a href="layer.md#gzip-media-types"><code>application/vnd.oci.image.layer.v1.tar+gzip</code></a></li>
+<li><a href="layer.md#non-distributable-layers"><code>application/vnd.oci.image.layer.nondistributable.v1.tar</code></a></li>
+<li><a href="layer.md#gzip-media-types"><code>application/vnd.oci.image.layer.nondistributable.v1.tar+gzip</code></a></li>
+</ul>
+<p>Manifests concerned with portability SHOULD use one of the above media types. An encountered <code>mediaType</code> that is unknown to the implementation MUST be ignored.</p>
+<p>Entries in this field will frequently use the <code>+gzip</code> types.</p></li>
+</ul></li>
+<li><p><strong><code>refers</code></strong> <em><a href="descriptor.md">descriptor</a></em></p>
+<p>This OPTIONAL property specifies a <a href="descriptor.md">descriptor</a> of another manifest. This value, used by the <a href="https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers"><code>referrers</code> API</a>, indicates a relationship to the specified manifest.</p></li>
+<li><p><strong><code>annotations</code></strong> <em>string-string map</em></p>
+<p>This OPTIONAL property contains arbitrary metadata for the image manifest. This OPTIONAL property MUST use the <a href="annotations.md#rules">annotation rules</a>.</p>
+<p>See <a href="annotations.md#pre-defined-annotation-keys">Pre-Defined Annotation Keys</a>.</p></li>
+</ul>
+<h2 id="example-image-manifest">Example Image Manifest</h2>
+<p><em>Example showing an image manifest:</em></p>
+<pre class="json,title=Manifest&amp;mediatype=application/vnd.oci.image.manifest.v1%2Bjson"><code>{
+  &quot;schemaVersion&quot;: 2,
+  &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+  &quot;config&quot;: {
+    &quot;mediaType&quot;: &quot;application/vnd.oci.image.config.v1+json&quot;,
+    &quot;size&quot;: 7023,
+    &quot;digest&quot;: &quot;sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7&quot;
+  },
+  &quot;layers&quot;: [
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;,
+      &quot;size&quot;: 32654,
+      &quot;digest&quot;: &quot;sha256:9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0&quot;
+    },
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;,
+      &quot;size&quot;: 16724,
+      &quot;digest&quot;: &quot;sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&quot;
+    },
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;,
+      &quot;size&quot;: 73109,
+      &quot;digest&quot;: &quot;sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736&quot;
+    }
+  ],
+  &quot;refers&quot;: {
+    &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+    &quot;size&quot;: 7682,
+    &quot;digest&quot;: &quot;sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270&quot;
+  },
+  &quot;annotations&quot;: {
+    &quot;com.example.key1&quot;: &quot;value1&quot;,
+    &quot;com.example.key2&quot;: &quot;value2&quot;
+  }
+}
+</code></pre>
+<h1 id="oci-image-index-specification">OCI Image Index Specification</h1>
+<p>The image index is a higher-level manifest which points to specific <a href="manifest.md">image manifests</a>, ideal for one or more platforms. While the use of an image index is OPTIONAL for image providers, image consumers SHOULD be prepared to process them.</p>
+<p>This section defines the <code>application/vnd.oci.image.index.v1+json</code> <a href="media-types.md">media type</a>.</p>
+<p>For the media type(s) that this document is compatible with, see the <a href="media-types.md#compatibility-matrix">matrix</a>.</p>
+<h2 id="image-index-property-descriptions"><em>Image Index</em> Property Descriptions</h2>
+<ul>
+<li><p><strong><code>schemaVersion</code></strong> <em>int</em></p>
+<p>This REQUIRED property specifies the image manifest schema version. For this version of the specification, this MUST be <code>2</code> to ensure backward compatibility with older versions of Docker. The value of this field will not change. This field MAY be removed in a future version of the specification.</p></li>
+<li><p><strong><code>mediaType</code></strong> <em>string</em></p>
+<p>This property SHOULD be used and <a href="media-types.md#compatibility-matrix">remain compatible</a> with earlier versions of this specification and with other similar external formats. When used, this field MUST contain the media type <code>application/vnd.oci.image.index.v1+json</code>. This field usage differs from the <a href="descriptor.md#properties">descriptor</a> use of <code>mediaType</code>.</p></li>
+<li><p><strong><code>manifests</code></strong> <em>array of objects</em></p>
+<p>This REQUIRED property contains a list of <a href="manifest.md">manifests</a> for specific platforms. While this property MUST be present, the size of the array MAY be zero.</p>
+<p>Each object in <code>manifests</code> includes a set of <a href="descriptor.md#properties">descriptor properties</a> with the following additional properties and restrictions:</p>
+<ul>
+<li><p><strong><code>mediaType</code></strong> <em>string</em></p>
+<p>This <a href="descriptor.md#properties">descriptor property</a> has additional restrictions for <code>manifests</code>. Implementations MUST support at least the following media types:</p>
+<ul>
+<li><a href="manifest.md"><code>application/vnd.oci.image.manifest.v1+json</code></a></li>
+<li><a href="artifact.md"><code>application/vnd.oci.artifact.manifest.v1+json</code></a></li>
+</ul>
+<p>Also, implementations SHOULD support the following media types:</p>
+<ul>
+<li><code>application/vnd.oci.image.index.v1+json</code> (nested index)</li>
+</ul>
+<p>Image indexes concerned with portability SHOULD use one of the above media types. Future versions of the spec MAY use a different mediatype (i.e. a new versioned format). An encountered <code>mediaType</code> that is unknown to the implementation MUST be ignored.</p></li>
+<li><p><strong><code>platform</code></strong> <em>object</em></p>
+<p>This OPTIONAL property describes the minimum runtime requirements of the image. This property SHOULD be present if its target is platform-specific.</p>
+<ul>
+<li><p><strong><code>architecture</code></strong> <em>string</em></p>
+<p>This REQUIRED property specifies the CPU architecture. Image indexes SHOULD use, and implementations SHOULD understand, values listed in the Go Language document for <a href="https://golang.org/doc/install/source#environment"><code>GOARCH</code></a>.</p></li>
+<li><p><strong><code>os</code></strong> <em>string</em></p>
+<p>This REQUIRED property specifies the operating system. Image indexes SHOULD use, and implementations SHOULD understand, values listed in the Go Language document for <a href="https://golang.org/doc/install/source#environment"><code>GOOS</code></a>.</p></li>
+<li><p><strong><code>os.version</code></strong> <em>string</em></p>
+<p>This OPTIONAL property specifies the version of the operating system targeted by the referenced blob. Implementations MAY refuse to use manifests where <code>os.version</code> is not known to work with the host OS version. Valid values are implementation-defined. e.g. <code>10.0.14393.1066</code> on <code>windows</code>.</p></li>
+<li><p><strong><code>os.features</code></strong> <em>array of strings</em></p>
+<p>This OPTIONAL property specifies an array of strings, each specifying a mandatory OS feature. When <code>os</code> is <code>windows</code>, image indexes SHOULD use, and implementations SHOULD understand the following values:</p>
+<ul>
+<li><code>win32k</code>: image requires <code>win32k.sys</code> on the host (Note: <code>win32k.sys</code> is missing on Nano Server)</li>
+</ul>
+<p>When <code>os</code> is not <code>windows</code>, values are implementation-defined and SHOULD be submitted to this specification for standardization.</p></li>
+<li><p><strong><code>variant</code></strong> <em>string</em></p>
+<p>This OPTIONAL property specifies the variant of the CPU. Image indexes SHOULD use, and implementations SHOULD understand, <code>variant</code> values listed in the <a href="#platform-variants">Platform Variants</a> table.</p></li>
+<li><p><strong><code>features</code></strong> <em>array of strings</em></p>
+<p>This property is RESERVED for future versions of the specification.</p></li>
+</ul></li>
+</ul>
+<p>If multiple manifests match a client or runtime's requirements, the first matching entry SHOULD be used.</p></li>
+<li><p><strong><code>annotations</code></strong> <em>string-string map</em></p>
+<p>This OPTIONAL property contains arbitrary metadata for the image index. This OPTIONAL property MUST use the <a href="annotations.md#rules">annotation rules</a>.</p>
+<p>See <a href="annotations.md#pre-defined-annotation-keys">Pre-Defined Annotation Keys</a>.</p></li>
+</ul>
+<h2 id="platform-variants">Platform Variants</h2>
+<p>When the variant of the CPU is not listed in the table, values are implementation-defined and SHOULD be submitted to this specification for standardization.</p>
+<table>
+<thead>
+<tr class="header">
+<th>ISA/ABI</th>
+<th><code>architecture</code></th>
+<th><code>variant</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ARM 32-bit, v6</td>
+<td><code>arm</code></td>
+<td><code>v6</code></td>
+</tr>
+<tr class="even">
+<td>ARM 32-bit, v7</td>
+<td><code>arm</code></td>
+<td><code>v7</code></td>
+</tr>
+<tr class="odd">
+<td>ARM 32-bit, v8</td>
+<td><code>arm</code></td>
+<td><code>v8</code></td>
+</tr>
+<tr class="even">
+<td>ARM 64-bit, v8</td>
+<td><code>arm64</code></td>
+<td><code>v8</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="example-image-index">Example Image Index</h2>
+<p><em>Example showing a simple image index pointing to image manifests for two platforms:</em></p>
+<pre class="json,title=Image%20Index&amp;mediatype=application/vnd.oci.image.index.v1%2Bjson"><code>{
+  &quot;schemaVersion&quot;: 2,
+  &quot;mediaType&quot;: &quot;application/vnd.oci.image.index.v1+json&quot;,
+  &quot;manifests&quot;: [
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+      &quot;size&quot;: 7143,
+      &quot;digest&quot;: &quot;sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f&quot;,
+      &quot;platform&quot;: {
+        &quot;architecture&quot;: &quot;ppc64le&quot;,
+        &quot;os&quot;: &quot;linux&quot;
+      }
+    },
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+      &quot;size&quot;: 7682,
+      &quot;digest&quot;: &quot;sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270&quot;,
+      &quot;platform&quot;: {
+        &quot;architecture&quot;: &quot;amd64&quot;,
+        &quot;os&quot;: &quot;linux&quot;
+      }
+    }
+  ],
+  &quot;annotations&quot;: {
+    &quot;com.example.key1&quot;: &quot;value1&quot;,
+    &quot;com.example.key2&quot;: &quot;value2&quot;
+  }
+}
+</code></pre>
+<h2 id="example-image-index-with-multiple-media-types">Example Image Index with multiple media types</h2>
+<p><em>Example showing an image index pointing to manifests with multiple media types:</em></p>
+<pre class="json,title=Image%20Index&amp;mediatype=application/vnd.oci.image.index.v1%2Bjson"><code>{
+  &quot;schemaVersion&quot;: 2,
+  &quot;mediaType&quot;: &quot;application/vnd.oci.image.index.v1+json&quot;,
+  &quot;manifests&quot;: [
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+      &quot;size&quot;: 7143,
+      &quot;digest&quot;: &quot;sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f&quot;,
+      &quot;platform&quot;: {
+        &quot;architecture&quot;: &quot;ppc64le&quot;,
+        &quot;os&quot;: &quot;linux&quot;
+      }
+    },
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.oci.artifact.manifest.v1+json&quot;,
+      &quot;size&quot;: 7682,
+      &quot;digest&quot;: &quot;sha256:601570aaff1b68a61eb9c85b8beca1644e698003e0cdb5bce960f193d265a8b7&quot;,
+      &quot;artifactType&quot;: &quot;application/example&quot;,
+      &quot;annotations&quot;: {
+          &quot;com.example.artifactKey1&quot;: &quot;value1&quot;,
+          &quot;com.example.artifactKey2&quot;: &quot;value2&quot;
+        }
+    }
+  ],
+  &quot;annotations&quot;: {
+    &quot;com.example.key1&quot;: &quot;value1&quot;,
+    &quot;com.example.key2&quot;: &quot;value2&quot;
+  }
+}
+</code></pre>
+<h1 id="image-layer-filesystem-changeset">Image Layer Filesystem Changeset</h1>
+<p>This document describes how to serialize a filesystem and filesystem changes like removed files into a blob called a layer. One or more layers are applied on top of each other to create a complete filesystem. This document will use a concrete example to illustrate how to create and consume these filesystem layers.</p>
+<p>This section defines the <code>application/vnd.oci.image.layer.v1.tar</code>, <code>application/vnd.oci.image.layer.v1.tar+gzip</code>, <code>application/vnd.oci.image.layer.v1.tar+zstd</code>, <code>application/vnd.oci.image.layer.nondistributable.v1.tar</code>, <code>application/vnd.oci.image.layer.nondistributable.v1.tar+gzip</code>, and <code>application/vnd.oci.image.layer.nondistributable.v1.tar+zstd</code> <a href="media-types.md">media types</a>.</p>
+<h2 id="gzip-media-types"><code>+gzip</code> Media Types</h2>
+<ul>
+<li>The media type <code>application/vnd.oci.image.layer.v1.tar+gzip</code> represents an <code>application/vnd.oci.image.layer.v1.tar</code> payload which has been compressed with <a href="https://tools.ietf.org/html/rfc1952">gzip</a>.</li>
+<li>The media type <code>application/vnd.oci.image.layer.nondistributable.v1.tar+gzip</code> represents an <code>application/vnd.oci.image.layer.nondistributable.v1.tar</code> payload which has been compressed with <a href="https://tools.ietf.org/html/rfc1952">gzip</a>.</li>
+</ul>
+<h2 id="zstd-media-types"><code>+zstd</code> Media Types</h2>
+<ul>
+<li>The media type <code>application/vnd.oci.image.layer.v1.tar+zstd</code> represents an <code>application/vnd.oci.image.layer.v1.tar</code> payload which has been compressed with <a href="https://tools.ietf.org/html/rfc8478">zstd</a>.</li>
+<li>The media type <code>application/vnd.oci.image.layer.nondistributable.v1.tar+zstd</code> represents an <code>application/vnd.oci.image.layer.nondistributable.v1.tar</code> payload which has been compressed with <a href="https://tools.ietf.org/html/rfc8478">zstd</a>.</li>
+</ul>
+<h2 id="distributable-format">Distributable Format</h2>
+<ul>
+<li>Layer Changesets for the <a href="media-types.md">media type</a> <code>application/vnd.oci.image.layer.v1.tar</code> MUST be packaged in <a href="https://en.wikipedia.org/wiki/Tar_(computing)">tar archive</a>.</li>
+<li>Layer Changesets for the <a href="media-types.md">media type</a> <code>application/vnd.oci.image.layer.v1.tar</code> MUST NOT include duplicate entries for file paths in the resulting <a href="https://en.wikipedia.org/wiki/Tar_(computing)">tar archive</a>.</li>
+</ul>
+<h2 id="change-types">Change Types</h2>
+<p>Types of changes that can occur in a changeset are:</p>
+<ul>
+<li>Additions</li>
+<li>Modifications</li>
+<li>Removals</li>
+</ul>
+<p>Additions and Modifications are represented the same in the changeset tar archive.</p>
+<p>Removals are represented using "<a href="#whiteouts">whiteout</a>" file entries (See <a href="#representing-changes">Representing Changes</a>).</p>
+<h3 id="file-types">File Types</h3>
+<p>Throughout this document section, the use of word "files" or "entries" includes the following, where supported:</p>
+<ul>
+<li>regular files</li>
+<li>directories</li>
+<li>sockets</li>
+<li>symbolic links</li>
+<li>block devices</li>
+<li>character devices</li>
+<li>FIFOs</li>
+</ul>
+<h3 id="file-attributes">File Attributes</h3>
+<p>Where supported, MUST include file attributes for Additions and Modifications include:</p>
+<ul>
+<li>Modification Time (<code>mtime</code>)</li>
+<li>User ID (<code>uid</code>)
+<ul>
+<li>User Name (<code>uname</code>) <em>secondary to <code>uid</code></em></li>
+</ul></li>
+<li>Group ID (<code>gid </code>)
+<ul>
+<li>Group Name (<code>gname</code>) <em>secondary to <code>gid</code></em></li>
+</ul></li>
+<li>Mode (<code>mode</code>)</li>
+<li>Extended Attributes (<code>xattrs</code>)</li>
+<li>Symlink reference (<code>linkname</code> + symbolic link type)</li>
+<li><a href="#hardlinks">Hardlink</a> reference (<code>linkname</code>)</li>
+</ul>
+<p><a href="https://en.wikipedia.org/wiki/Sparse_file">Sparse files</a> SHOULD NOT be used because they lack consistent support across tar implementations.</p>
+<h4 id="hardlinks">Hardlinks</h4>
+<ul>
+<li>Hardlinks are a <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/link.html">POSIX concept</a> for having one or more directory entries for the same file on the same device.</li>
+<li>Not all filesystems support hardlinks (e.g. <a href="https://en.wikipedia.org/wiki/File_Allocation_Table">FAT</a>).</li>
+<li>Hardlinks are possible with all <a href="#file-types">file types</a> except <code>directories</code>.</li>
+<li>Non-directory files are considered "hardlinked" when their link count is greater than 1.</li>
+<li>Hardlinked files are on a same device (i.e. comparing Major:Minor pair) and have the same inode.</li>
+<li>The corresponding files that share the link with the &gt; 1 linkcount may be outside the directory that the changeset is being produced from, in which case the <code>linkname</code> is not recorded in the changeset.</li>
+<li>Hardlinks are stored in a tar archive with type of a <code>1</code> char, per the <a href="https://www.gnu.org/software/tar/manual/html_node/Standard.html">GNU Basic Tar Format</a> and <a href="https://github.com/libarchive/libarchive/wiki/ManPageTar5#POSIX_ustar_Archives">libarchive tar(5)</a>.</li>
+<li>While approaches to deriving new or changed hardlinks may vary, a possible approach is:</li>
+</ul>
+<pre><code>SET LinkMap to map[&lt; Major:Minor String &gt;]map[&lt; inode integer &gt;]&lt; path string &gt;
+SET LinkNames to map[&lt; src path string &gt;]&lt; dest path string &gt;
+FOR each path in root path
+  IF path type is directory
+    CONTINUE
+  ENDIF
+  SET filestat to stat(path)
+  IF filestat num of links == 1
+    CONTINUE
+  ENDIF
+  IF LinkMap[filestat device][filestat inode] is not empty
+    SET LinkNames[path] to LinkMap[filestat device][filestat inode]
+  ELSE
+    SET LinkMap[filestat device][filestat inode] to path
+  ENDIF
+END FOR
+</code></pre>
+<p>With this approach, the link map and links names of a directory could be compared against that of another directory to derive additions and changes to hardlinks.</p>
+<h4 id="platform-specific-attributes">Platform-specific attributes</h4>
+<p>Implementations on Windows MUST support these additional attributes, encoded in <a href="https://github.com/libarchive/libarchive/wiki/ManPageTar5#pax-interchange-format">PAX vendor extensions</a> as follows:</p>
+<ul>
+<li><a href="https://msdn.microsoft.com/en-us/library/windows/desktop/gg258117(v=vs.85).aspx">Windows file attributes</a> (<code>MSWINDOWS.fileattr</code>)</li>
+<li><a href="https://msdn.microsoft.com/en-us/library/cc230366.aspx">Security descriptor</a> (<code>MSWINDOWS.rawsd</code>): base64-encoded self-relative binary security descriptor</li>
+<li>Mount points (<code>MSWINDOWS.mountpoint</code>): if present on a directory symbolic link, then the link should be created as a <a href="https://en.wikipedia.org/wiki/NTFS_junction_point">directory junction</a></li>
+<li>Creation time (<code>LIBARCHIVE.creationtime</code>)</li>
+</ul>
+<h2 id="creating">Creating</h2>
+<h3 id="initial-root-filesystem">Initial Root Filesystem</h3>
+<p>The initial root filesystem is the base or parent layer.</p>
+<p>For this example, an image root filesystem has an initial state as an empty directory. The name of the directory is not relevant to the layer itself, only for the purpose of producing comparisons.</p>
+<p>Here is an initial empty directory structure for a changeset, with a unique directory name <code>rootfs-c9d-v1</code>.</p>
+<pre><code>rootfs-c9d-v1/
+</code></pre>
+<h3 id="populate-initial-filesystem">Populate Initial Filesystem</h3>
+<p>Files and directories are then created:</p>
+<pre><code>rootfs-c9d-v1/
+    etc/
+        my-app-config
+    bin/
+        my-app-binary
+        my-app-tools
+</code></pre>
+<p>The <code>rootfs-c9d-v1</code> directory is then created as a plain <a href="https://en.wikipedia.org/wiki/Tar_(computing)">tar archive</a> with relative path to <code>rootfs-c9d-v1</code>. Entries for the following files:</p>
+<pre><code>./
+./etc/
+./etc/my-app-config
+./bin/
+./bin/my-app-binary
+./bin/my-app-tools
+</code></pre>
+<h3 id="populate-a-comparison-filesystem">Populate a Comparison Filesystem</h3>
+<p>Create a new directory and initialize it with a copy or snapshot of the prior root filesystem. Example commands that can preserve <a href="#file-attributes">file attributes</a> to make this copy are:</p>
+<ul>
+<li><a href="https://linux.die.net/man/1/cp">cp(1)</a>: <code>cp -a rootfs-c9d-v1/ rootfs-c9d-v1.s1/</code></li>
+<li><a href="https://linux.die.net/man/1/rsync">rsync(1)</a>: <code>rsync -aHAX rootfs-c9d-v1/ rootfs-c9d-v1.s1/</code></li>
+<li><a href="https://linux.die.net/man/1/tar">tar(1)</a>: <code>mkdir rootfs-c9d-v1.s1 &amp;&amp; tar --acls --xattrs -C rootfs-c9d-v1/ -c . | tar -C rootfs-c9d-v1.s1/ --acls --xattrs -x</code> (including <code>--selinux</code> where supported)</li>
+</ul>
+<p>Any <a href="#change-types">changes</a> to the snapshot MUST NOT change or affect the directory it was copied from.</p>
+<p>For example <code>rootfs-c9d-v1.s1</code> is an identical snapshot of <code>rootfs-c9d-v1</code>. In this way <code>rootfs-c9d-v1.s1</code> is prepared for updates and alterations.</p>
+<p><strong>Implementor's Note</strong>: <em>a copy-on-write or union filesystem can efficiently make directory snapshots</em></p>
+<p>Initial layout of the snapshot:</p>
+<pre><code>rootfs-c9d-v1.s1/
+    etc/
+        my-app-config
+    bin/
+        my-app-binary
+        my-app-tools
+</code></pre>
+<p>See <a href="#change-types">Change Types</a> for more details on changes.</p>
+<p>For example, add a directory at <code>/etc/my-app.d</code> containing a default config file, removing the existing config file. Also a change (in attribute or file content) to <code>./bin/my-app-tools</code> binary to handle the config layout change.</p>
+<p>Following these changes, the representation of the <code>rootfs-c9d-v1.s1</code> directory:</p>
+<pre><code>rootfs-c9d-v1.s1/
+    etc/
+        my-app.d/
+            default.cfg
+    bin/
+        my-app-binary
+        my-app-tools
+</code></pre>
+<h3 id="determining-changes">Determining Changes</h3>
+<p>When two directories are compared, the relative root is the top-level directory. The directories are compared, looking for files that have been <a href="#change-types">added, modified, or removed</a>.</p>
+<p>For this example, <code>rootfs-c9d-v1/</code> and <code>rootfs-c9d-v1.s1/</code> are recursively compared, each as relative root path.</p>
+<p>The following changeset is found:</p>
+<pre><code>Added:      /etc/my-app.d/
+Added:      /etc/my-app.d/default.cfg
+Modified:   /bin/my-app-tools
+Deleted:    /etc/my-app-config
+</code></pre>
+<p>This reflects the removal of <code>/etc/my-app-config</code> and creation of a file and directory at <code>/etc/my-app.d/default.cfg</code>. <code>/bin/my-app-tools</code> has also been replaced with an updated version.</p>
+<h3 id="representing-changes">Representing Changes</h3>
+<p>A <a href="https://en.wikipedia.org/wiki/Tar_(computing)">tar archive</a> is then created which contains <em>only</em> this changeset:</p>
+<ul>
+<li>Added and modified files and directories in their entirety</li>
+<li>Deleted files or directories marked with a <a href="#whiteouts">whiteout file</a></li>
+</ul>
+<p>The resulting tar archive for <code>rootfs-c9d-v1.s1</code> has the following entries:</p>
+<pre><code>./etc/my-app.d/
+./etc/my-app.d/default.cfg
+./bin/my-app-tools
+./etc/.wh.my-app-config
+</code></pre>
+<p>To signify that the resource <code>./etc/my-app-config</code> MUST be removed when the changeset is applied, the basename of the entry is prefixed with <code>.wh.</code>.</p>
+<h2 id="applying-changesets">Applying Changesets</h2>
+<ul>
+<li>Layer Changesets of <a href="media-types.md">media type</a> <code>application/vnd.oci.image.layer.v1.tar</code> are <em>applied</em>, rather than simply extracted as tar archives.</li>
+<li>Applying a layer changeset requires special consideration for the <a href="#whiteouts">whiteout</a> files.</li>
+<li>In the absence of any <a href="#whiteouts">whiteout</a> files in a layer changeset, the archive is extracted like a regular tar archive.</li>
+</ul>
+<h3 id="changeset-over-existing-files">Changeset over existing files</h3>
+<p>This section specifies applying an entry from a layer changeset if the target path already exists.</p>
+<p>If the entry and the existing path are both directories, then the existing path's attributes MUST be replaced by those of the entry in the changeset. In all other cases, the implementation MUST do the semantic equivalent of the following:</p>
+<ul>
+<li>removing the file path (e.g. <a href="https://linux.die.net/man/2/unlink"><code>unlink(2)</code></a> on Linux systems)</li>
+<li>recreating the file path, based on the contents and attributes of the changeset entry</li>
+</ul>
+<h2 id="whiteouts">Whiteouts</h2>
+<ul>
+<li>A whiteout file is an empty file with a special filename that signifies a path should be deleted.</li>
+<li>A whiteout filename consists of the prefix <code>.wh.</code> plus the basename of the path to be deleted.</li>
+<li>As files prefixed with <code>.wh.</code> are special whiteout markers, it is not possible to create a filesystem which has a file or directory with a name beginning with <code>.wh.</code>.</li>
+<li>Once a whiteout is applied, the whiteout itself MUST also be hidden.</li>
+<li>Whiteout files MUST only apply to resources in lower/parent layers.</li>
+<li>Files that are present in the same layer as a whiteout file can only be hidden by whiteout files in subsequent layers.</li>
+</ul>
+<p>The following is a base layer with several resources:</p>
+<pre><code>a/
+a/b/
+a/b/c/
+a/b/c/bar
+</code></pre>
+<p>When the next layer is created, the original <code>a/b</code> directory is deleted and recreated with <code>a/b/c/foo</code>:</p>
+<pre><code>a/
+a/.wh..wh..opq
+a/b/
+a/b/c/
+a/b/c/foo
+</code></pre>
+<p>When processing the second layer, <code>a/.wh..wh..opq</code> is applied first, before creating the new version of <code>a/b</code>, regardless of the ordering in which the whiteout file was encountered. For example, the following layer is equivalent to the layer above:</p>
+<pre><code>a/
+a/b/
+a/b/c/
+a/b/c/foo
+a/.wh..wh..opq
+</code></pre>
+<p>Implementations SHOULD generate layers such that the whiteout files appear before sibling directory entries.</p>
+<h3 id="opaque-whiteout">Opaque Whiteout</h3>
+<ul>
+<li>In addition to expressing that a single entry should be removed from a lower layer, layers may remove all of the children using an opaque whiteout entry.</li>
+<li>An opaque whiteout entry is a file with the name <code>.wh..wh..opq</code> indicating that all siblings are hidden in the lower layer.</li>
+</ul>
+<p>Let's take the following base layer as an example:</p>
+<pre><code>etc/
+    my-app-config
+bin/
+    my-app-binary
+    my-app-tools
+    tools/
+        my-app-tool-one
+</code></pre>
+<p>If all children of <code>bin/</code> are removed, the next layer would have the following:</p>
+<pre><code>bin/
+    .wh..wh..opq
+</code></pre>
+<p>This is called <em>opaque whiteout</em> format. An <em>opaque whiteout</em> file hides <em>all</em> children of the <code>bin/</code> including sub-directories and all descendants. Using <em>explicit whiteout</em> files, this would be equivalent to the following:</p>
+<pre><code>bin/
+    .wh.my-app-binary
+    .wh.my-app-tools
+    .wh.tools
+</code></pre>
+<p>In this case, a unique whiteout file is generated for each entry. If there were more children of <code>bin/</code> in the base layer, there would be an entry for each. Note that this opaque file will apply to <em>all</em> children, including sub-directories, other resources and all descendants.</p>
+<p>Implementations SHOULD generate layers using <em>explicit whiteout</em> files, but MUST accept both.</p>
+<p>Any given image is likely to be composed of several of these Image Filesystem Changeset tar archives.</p>
+<h1 id="non-distributable-layers">Non-Distributable Layers</h1>
+<p>Due to legal requirements, certain layers may not be regularly distributable. Such "non-distributable" layers are typically downloaded directly from a distributor but never uploaded.</p>
+<p>Non-distributable layers SHOULD be tagged with an alternative mediatype of <code>application/vnd.oci.image.layer.nondistributable.v1.tar</code>. Implementations SHOULD NOT upload layers tagged with this media type; however, such a media type SHOULD NOT affect whether an implementation downloads the layer.</p>
+<p><a href="descriptor.md">Descriptors</a> referencing non-distributable layers MAY include <code>urls</code> for downloading these layers directly; however, the presence of the <code>urls</code> field SHOULD NOT be used to determine whether or not a layer is non-distributable.</p>
+<h1 id="oci-image-configuration">OCI Image Configuration</h1>
+<p>An OCI <em>Image</em> is an ordered collection of root filesystem changes and the corresponding execution parameters for use within a container runtime. This specification outlines the JSON format describing images for use with a container runtime and execution tool and its relationship to filesystem changesets, described in <a href="layer.md">Layers</a>.</p>
+<p>This section defines the <code>application/vnd.oci.image.config.v1+json</code> <a href="media-types.md">media type</a>.</p>
+<h2 id="terminology">Terminology</h2>
+<p>This specification uses the following terms:</p>
+<h3 id="layer"><a href="layer.md">Layer</a></h3>
+<ul>
+<li>Image filesystems are composed of <em>layers</em>.</li>
+<li>Each layer represents a set of filesystem changes in a tar-based <a href="layer.md">layer format</a>, recording files to be added, changed, or deleted relative to its parent layer.</li>
+<li>Layers do not have configuration metadata such as environment variables or default arguments - these are properties of the image as a whole rather than any particular layer.</li>
+<li>Using a layer-based or union filesystem such as AUFS, or by computing the diff from filesystem snapshots, the filesystem changeset can be used to present a series of image layers as if they were one cohesive filesystem.</li>
+</ul>
+<h3 id="image-json">Image JSON</h3>
+<ul>
+<li>Each image has an associated JSON structure which describes some basic information about the image such as date created, author, as well as execution/runtime configuration like its entrypoint, default arguments, networking, and volumes.</li>
+<li>The JSON structure also references a cryptographic hash of each layer used by the image, and provides history information for those layers.</li>
+<li>This JSON is considered to be immutable, because changing it would change the computed <a href="#imageid">ImageID</a>.</li>
+<li>Changing it means creating a new derived image, instead of changing the existing image.</li>
+</ul>
+<h3 id="layer-diffid">Layer DiffID</h3>
+<p>A layer DiffID is the digest over the layer's uncompressed tar archive and serialized in the descriptor digest format, e.g., <code>sha256:a9561eb1b190625c9adb5a9513e72c4dedafc1cb2d4c5236c9a6957ec7dfd5a9</code>. Layers SHOULD be packed and unpacked reproducibly to avoid changing the layer DiffID, for example by using <a href="https://github.com/vbatts/tar-split">tar-split</a> to save the tar headers.</p>
+<p>NOTE: Do not confuse DiffIDs with <a href="manifest.md#image-manifest-property-descriptions">layer digests</a>, often referenced in the manifest, which are digests over compressed or uncompressed content.</p>
+<h3 id="layer-chainid">Layer ChainID</h3>
+<p>For convenience, it is sometimes useful to refer to a stack of layers with a single identifier. While a layer's <code>DiffID</code> identifies a single changeset, the <code>ChainID</code> identifies the subsequent application of those changesets. This ensures that we have handles referring to both the layer itself, as well as the result of the application of a series of changesets. Use in combination with <code>rootfs.diff_ids</code> while applying layers to a root filesystem to uniquely and safely identify the result.</p>
+<h4 id="definition">Definition</h4>
+<p>The <code>ChainID</code> of an applied set of layers is defined with the following recursion:</p>
+<pre><code>ChainID(L₀) =  DiffID(L₀)
+ChainID(L₀|...|Lₙ₋₁|Lₙ) = Digest(ChainID(L₀|...|Lₙ₋₁) + &quot; &quot; + DiffID(Lₙ))
+</code></pre>
+<p>For this, we define the binary <code>|</code> operation to be the result of applying the right operand to the left operand. For example, given base layer <code>A</code> and a changeset <code>B</code>, we refer to the result of applying <code>B</code> to <code>A</code> as <code>A|B</code>.</p>
+<p>Above, we define the <code>ChainID</code> for a single layer (<code>L₀</code>) as equivalent to the <code>DiffID</code> for that layer. Otherwise, the <code>ChainID</code> for a set of applied layers (<code>L₀|...|Lₙ₋₁|Lₙ</code>) is defined as the recursion <code>Digest(ChainID(L₀|...|Lₙ₋₁) + " " + DiffID(Lₙ))</code>.</p>
+<h4 id="explanation">Explanation</h4>
+<p>Let's say we have layers A, B, C, ordered from bottom to top, where A is the base and C is the top. Defining <code>|</code> as a binary application operator, the root filesystem may be <code>A|B|C</code>. While it is implied that <code>C</code> is only useful when applied to <code>A|B</code>, the identifier <code>C</code> is insufficient to identify this result, as we'd have the equality <code>C = A|B|C</code>, which isn't true.</p>
+<p>The main issue is when we have two definitions of <code>C</code>, <code>C = C</code> and <code>C = A|B|C</code>. If this is true (with some handwaving), <code>C = x|C</code> where <code>x = any application</code>. This means that if an attacker can define <code>x</code>, relying on <code>C</code> provides no guarantee that the layers were applied in any order.</p>
+<p>The <code>ChainID</code> addresses this problem by being defined as a compound hash. <strong>We differentiate the changeset <code>C</code>, from the order-dependent application <code>A|B|C</code> by saying that the resulting rootfs is identified by ChainID(A|B|C), which can be calculated by <code>ImageConfig.rootfs</code>.</strong></p>
+<p>Let's expand the definition of <code>ChainID(A|B|C)</code> to explore its internal structure:</p>
+<pre><code>ChainID(A) = DiffID(A)
+ChainID(A|B) = Digest(ChainID(A) + &quot; &quot; + DiffID(B))
+ChainID(A|B|C) = Digest(ChainID(A|B) + &quot; &quot; + DiffID(C))
+</code></pre>
+<p>We can replace each definition and reduce to a single equality:</p>
+<pre><code>ChainID(A|B|C) = Digest(Digest(DiffID(A) + &quot; &quot; + DiffID(B)) + &quot; &quot; + DiffID(C))
+</code></pre>
+<p>Hopefully, the above is illustrative of the <em>actual</em> contents of the <code>ChainID</code>. Most importantly, we can easily see that <code>ChainID(C) != ChainID(A|B|C)</code>, otherwise, <code>ChainID(C) = DiffID(C)</code>, which is the base case, could not be true.</p>
+<h3 id="imageid">ImageID</h3>
+<p>Each image's ID is given by the SHA256 hash of its <a href="#image-json">configuration JSON</a>. It is represented as a hexadecimal encoding of 256 bits, e.g., <code>sha256:a9561eb1b190625c9adb5a9513e72c4dedafc1cb2d4c5236c9a6957ec7dfd5a9</code>. Since the <a href="#image-json">configuration JSON</a> that gets hashed references hashes of each layer in the image, this formulation of the ImageID makes images content-addressable.</p>
+<h2 id="properties-1">Properties</h2>
+<p>Note: Any OPTIONAL field MAY also be set to null, which is equivalent to being absent.</p>
+<ul>
+<li><p><strong>created</strong> <em>string</em>, OPTIONAL</p>
+<p>An combined date and time at which the image was created, formatted as defined by <a href="https://tools.ietf.org/html/rfc3339#section-5.6">RFC 3339, section 5.6</a>.</p></li>
+<li><p><strong>author</strong> <em>string</em>, OPTIONAL</p>
+<p>Gives the name and/or email address of the person or entity which created and is responsible for maintaining the image.</p></li>
+<li><p><strong>architecture</strong> <em>string</em>, REQUIRED</p>
+<p>The CPU architecture which the binaries in this image are built to run on. Configurations SHOULD use, and implementations SHOULD understand, values listed in the Go Language document for <a href="https://golang.org/doc/install/source#environment"><code>GOARCH</code></a>.</p></li>
+<li><p><strong>os</strong> <em>string</em>, REQUIRED</p>
+<p>The name of the operating system which the image is built to run on. Configurations SHOULD use, and implementations SHOULD understand, values listed in the Go Language document for <a href="https://golang.org/doc/install/source#environment"><code>GOOS</code></a>.</p></li>
+<li><p><strong>os.version</strong> <em>string</em>, OPTIONAL</p>
+<p>This OPTIONAL property specifies the version of the operating system targeted by the referenced blob. Implementations MAY refuse to use manifests where <code>os.version</code> is not known to work with the host OS version. Valid values are implementation-defined. e.g. <code>10.0.14393.1066</code> on <code>windows</code>.</p></li>
+<li><p><strong>os.features</strong> <em>array of strings</em>, OPTIONAL</p>
+<p>This OPTIONAL property specifies an array of strings, each specifying a mandatory OS feature. When <code>os</code> is <code>windows</code>, image indexes SHOULD use, and implementations SHOULD understand the following values:</p>
+<ul>
+<li><code>win32k</code>: image requires <code>win32k.sys</code> on the host (Note: <code>win32k.sys</code> is missing on Nano Server)</li>
+</ul></li>
+<li><p><strong>variant</strong> <em>string</em>, OPTIONAL</p>
+<p>The variant of the specified CPU architecture. Configurations SHOULD use, and implementations SHOULD understand, <code>variant</code> values listed in the <a href="image-index.md#platform-variants">Platform Variants</a> table.</p></li>
+<li><p><strong>config</strong> <em>object</em>, OPTIONAL</p>
+<p>The execution parameters which SHOULD be used as a base when running a container using the image. This field can be <code>null</code>, in which case any execution parameters should be specified at creation of the container.</p>
+<ul>
+<li><p><strong>User</strong> <em>string</em>, OPTIONAL</p>
+<p>The username or UID which is a platform-specific structure that allows specific control over which user the process run as. This acts as a default value to use when the value is not specified when creating a container. For Linux based systems, all of the following are valid: <code>user</code>, <code>uid</code>, <code>user:group</code>, <code>uid:gid</code>, <code>uid:group</code>, <code>user:gid</code>. If <code>group</code>/<code>gid</code> is not specified, the default group and supplementary groups of the given <code>user</code>/<code>uid</code> in <code>/etc/passwd</code> from the container are applied.</p></li>
+<li><p><strong>ExposedPorts</strong> <em>object</em>, OPTIONAL</p>
+<p>A set of ports to expose from a container running this image. Its keys can be in the format of: <code>port/tcp</code>, <code>port/udp</code>, <code>port</code> with the default protocol being <code>tcp</code> if not specified. These values act as defaults and are merged with any specified when creating a container. <strong>NOTE:</strong> This JSON structure value is unusual because it is a direct JSON serialization of the Go type <code>map[string]struct{}</code> and is represented in JSON as an object mapping its keys to an empty object.</p></li>
+<li><p><strong>Env</strong> <em>array of strings</em>, OPTIONAL</p>
+<p>Entries are in the format of <code>VARNAME=VARVALUE</code>. These values act as defaults and are merged with any specified when creating a container.</p></li>
+<li><p><strong>Entrypoint</strong> <em>array of strings</em>, OPTIONAL</p>
+<p>A list of arguments to use as the command to execute when the container starts. These values act as defaults and may be replaced by an entrypoint specified when creating a container.</p></li>
+<li><p><strong>Cmd</strong> <em>array of strings</em>, OPTIONAL</p>
+<p>Default arguments to the entrypoint of the container. These values act as defaults and may be replaced by any specified when creating a container. If an <code>Entrypoint</code> value is not specified, then the first entry of the <code>Cmd</code> array SHOULD be interpreted as the executable to run.</p></li>
+<li><p><strong>Volumes</strong> <em>object</em>, OPTIONAL</p>
+<p>A set of directories describing where the process is likely to write data specific to a container instance. <strong>NOTE:</strong> This JSON structure value is unusual because it is a direct JSON serialization of the Go type <code>map[string]struct{}</code> and is represented in JSON as an object mapping its keys to an empty object.</p></li>
+<li><p><strong>WorkingDir</strong> <em>string</em>, OPTIONAL</p>
+<p>Sets the current working directory of the entrypoint process in the container. This value acts as a default and may be replaced by a working directory specified when creating a container.</p></li>
+<li><p><strong>Labels</strong> <em>object</em>, OPTIONAL</p>
+<p>The field contains arbitrary metadata for the container. This property MUST use the <a href="annotations.md#rules">annotation rules</a>.</p></li>
+<li><p><strong>StopSignal</strong> <em>string</em>, OPTIONAL</p>
+<p>The field contains the system call signal that will be sent to the container to exit. The signal can be a signal name in the format <code>SIGNAME</code>, for instance <code>SIGKILL</code> or <code>SIGRTMIN+3</code>.</p></li>
+<li><p><strong>Memory</strong> <em>integer</em>, OPTIONAL</p>
+<p>This property is <em>reserved</em> for use, to <a href="media-types.md#compatibility-matrix">maintain compatibility</a>.</p></li>
+<li><p><strong>MemorySwap</strong> <em>integer</em>, OPTIONAL</p>
+<p>This property is <em>reserved</em> for use, to <a href="media-types.md#compatibility-matrix">maintain compatibility</a>.</p></li>
+<li><p><strong>CpuShares</strong> <em>integer</em>, OPTIONAL</p>
+<p>This property is <em>reserved</em> for use, to <a href="media-types.md#compatibility-matrix">maintain compatibility</a>.</p></li>
+<li><p><strong>Healthcheck</strong> <em>object</em>, OPTIONAL</p>
+<p>This property is <em>reserved</em> for use, to <a href="media-types.md#compatibility-matrix">maintain compatibility</a>.</p></li>
+</ul></li>
+<li><p><strong>rootfs</strong> <em>object</em>, REQUIRED</p>
+<p>The rootfs key references the layer content addresses used by the image. This makes the image config hash depend on the filesystem hash.</p>
+<ul>
+<li><p><strong>type</strong> <em>string</em>, REQUIRED</p>
+<p>MUST be set to <code>layers</code>. Implementations MUST generate an error if they encounter a unknown value while verifying or unpacking an image.</p></li>
+<li><p><strong>diff_ids</strong> <em>array of strings</em>, REQUIRED</p>
+<p>An array of layer content hashes (<code>DiffIDs</code>), in order from first to last.</p></li>
+</ul></li>
+<li><p><strong>history</strong> <em>array of objects</em>, OPTIONAL</p>
+<p>Describes the history of each layer. The array is ordered from first to last. The object has the following fields:</p>
+<ul>
+<li><p><strong>created</strong> <em>string</em>, OPTIONAL</p>
+<p>A combined date and time at which the layer was created, formatted as defined by <a href="https://tools.ietf.org/html/rfc3339#section-5.6">RFC 3339, section 5.6</a>.</p></li>
+<li><p><strong>author</strong> <em>string</em>, OPTIONAL</p>
+<p>The author of the build point.</p></li>
+<li><p><strong>created_by</strong> <em>string</em>, OPTIONAL</p>
+<p>The command which created the layer.</p></li>
+<li><p><strong>comment</strong> <em>string</em>, OPTIONAL</p>
+<p>A custom message set when creating the layer.</p></li>
+<li><p><strong>empty_layer</strong> <em>boolean</em>, OPTIONAL</p>
+<p>This field is used to mark if the history item created a filesystem diff. It is set to true if this history item doesn't correspond to an actual layer in the rootfs section (for example, Dockerfile's <a href="https://docs.docker.com/engine/reference/builder/#/env">ENV</a> command results in no change to the filesystem).</p></li>
+</ul></li>
+</ul>
+<p>Any extra fields in the Image JSON struct are considered implementation specific and MUST be ignored by any implementations which are unable to interpret them.</p>
+<p>Whitespace is OPTIONAL and implementations MAY have compact JSON with no whitespace.</p>
+<h2 id="example">Example</h2>
+<p>Here is an example image configuration JSON document:</p>
+<pre class="json,title=Image%20JSON&amp;mediatype=application/vnd.oci.image.config.v1%2Bjson"><code>{
+    &quot;created&quot;: &quot;2015-10-31T22:22:56.015925234Z&quot;,
+    &quot;author&quot;: &quot;Alyssa P. Hacker &lt;alyspdev@example.com&gt;&quot;,
+    &quot;architecture&quot;: &quot;amd64&quot;,
+    &quot;os&quot;: &quot;linux&quot;,
+    &quot;config&quot;: {
+        &quot;User&quot;: &quot;alice&quot;,
+        &quot;ExposedPorts&quot;: {
+            &quot;8080/tcp&quot;: {}
+        },
+        &quot;Env&quot;: [
+            &quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;,
+            &quot;FOO=oci_is_a&quot;,
+            &quot;BAR=well_written_spec&quot;
+        ],
+        &quot;Entrypoint&quot;: [
+            &quot;/bin/my-app-binary&quot;
+        ],
+        &quot;Cmd&quot;: [
+            &quot;--foreground&quot;,
+            &quot;--config&quot;,
+            &quot;/etc/my-app.d/default.cfg&quot;
+        ],
+        &quot;Volumes&quot;: {
+            &quot;/var/job-result-data&quot;: {},
+            &quot;/var/log/my-app-logs&quot;: {}
+        },
+        &quot;WorkingDir&quot;: &quot;/home/alice&quot;,
+        &quot;Labels&quot;: {
+            &quot;com.example.project.git.url&quot;: &quot;https://example.com/project.git&quot;,
+            &quot;com.example.project.git.commit&quot;: &quot;45a939b2999782a3f005621a8d0f29aa387e1d6b&quot;
+        }
+    },
+    &quot;rootfs&quot;: {
+      &quot;diff_ids&quot;: [
+        &quot;sha256:c6f988f4874bb0add23a778f753c65efe992244e148a1d2ec2a8b664fb66bbd1&quot;,
+        &quot;sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef&quot;
+      ],
+      &quot;type&quot;: &quot;layers&quot;
+    },
+    &quot;history&quot;: [
+      {
+        &quot;created&quot;: &quot;2015-10-31T22:22:54.690851953Z&quot;,
+        &quot;created_by&quot;: &quot;/bin/sh -c #(nop) ADD file:a3bc1e842b69636f9df5256c49c5374fb4eef1e281fe3f282c65fb853ee171c5 in /&quot;
+      },
+      {
+        &quot;created&quot;: &quot;2015-10-31T22:22:55.613815829Z&quot;,
+        &quot;created_by&quot;: &quot;/bin/sh -c #(nop) CMD [\&quot;sh\&quot;]&quot;,
+        &quot;empty_layer&quot;: true
+      },
+      {
+        &quot;created&quot;: &quot;2015-10-31T22:22:56.329850019Z&quot;,
+        &quot;created_by&quot;: &quot;/bin/sh -c apk add curl&quot;
+      }
+    ]
+}
+</code></pre>
+<h1 id="annotations">Annotations</h1>
+<p>Several components of the specification, like <a href="manifest.md">Image Manifests</a> and <a href="descriptor.md">Descriptors</a>, feature an optional annotations property, whose format is common and defined in this section.</p>
+<p>This property contains arbitrary metadata.</p>
+<h2 id="rules">Rules</h2>
+<ul>
+<li>Annotations MUST be a key-value map where both the key and value MUST be strings.</li>
+<li>While the value MUST be present, it MAY be an empty string.</li>
+<li>Keys MUST be unique within this map, and best practice is to namespace the keys.</li>
+<li>Keys SHOULD be named using a reverse domain notation - e.g. <code>com.example.myKey</code>.</li>
+<li>The prefix <code>org.opencontainers</code> is reserved for keys defined in Open Container Initiative (OCI) specifications and MUST NOT be used by other specifications and extensions.</li>
+<li>Keys using the <code>org.opencontainers.image</code> namespace are reserved for use in the OCI Image Specification and MUST NOT be used by other specifications and extensions, including other OCI specifications.</li>
+<li>If there are no annotations then this property MUST either be absent or be an empty map.</li>
+<li>Consumers MUST NOT generate an error if they encounter an unknown annotation key.</li>
+</ul>
+<h2 id="pre-defined-annotation-keys">Pre-Defined Annotation Keys</h2>
+<p>This specification defines the following annotation keys, intended for but not limited to <a href="image-index.md">image index</a>, image <a href="manifest.md">manifest</a>, <a href="artifact.md">artifact</a>, and <a href="descriptor.md">descriptor</a> authors.</p>
+<ul>
+<li><strong>org.opencontainers.artifact.created</strong> date and time on which the artifact was built, conforming to <a href="https://tools.ietf.org/html/rfc3339#section-5.6">RFC 3339</a>.</li>
+<li><strong>org.opencontainers.artifact.description</strong>: human readable description for the artifact (string)</li>
+<li><strong>org.opencontainers.image.created</strong> date and time on which the image was built, conforming to <a href="https://tools.ietf.org/html/rfc3339#section-5.6">RFC 3339</a>.</li>
+<li><strong>org.opencontainers.image.authors</strong> contact details of the people or organization responsible for the image (freeform string)</li>
+<li><strong>org.opencontainers.image.url</strong> URL to find more information on the image (string)</li>
+<li><strong>org.opencontainers.image.documentation</strong> URL to get documentation on the image (string)</li>
+<li><strong>org.opencontainers.image.source</strong> URL to get source code for building the image (string)</li>
+<li><strong>org.opencontainers.image.version</strong> version of the packaged software
+<ul>
+<li>The version MAY match a label or tag in the source code repository</li>
+<li>version MAY be <a href="https://semver.org/">Semantic versioning-compatible</a></li>
+</ul></li>
+<li><strong>org.opencontainers.image.revision</strong> Source control revision identifier for the packaged software.</li>
+<li><strong>org.opencontainers.image.vendor</strong> Name of the distributing entity, organization or individual.</li>
+<li><strong>org.opencontainers.image.licenses</strong> License(s) under which contained software is distributed as an <a href="https://spdx.org/spdx-specification-21-web-version#h.jxpfx0ykyb60">SPDX License Expression</a>.</li>
+<li><strong>org.opencontainers.image.ref.name</strong> Name of the reference for a target (string).
+<ul>
+<li>SHOULD only be considered valid when on descriptors on <code>index.json</code> within <a href="image-layout.md">image layout</a>.</li>
+<li>Character set of the value SHOULD conform to alphanum of <code>A-Za-z0-9</code> and separator set of <code>-._:@/+</code></li>
+<li>The reference must match the following <a href="considerations.md#ebnf">grammar</a>:
+<pre><code>ref       ::= component (&quot;/&quot; component)*
+component ::= alphanum (separator alphanum)*
+alphanum  ::= [A-Za-z0-9]+
+separator ::= [-._:@+] | &quot;--&quot;
+</code></pre></li>
+</ul></li>
+<li><strong>org.opencontainers.image.title</strong> Human-readable title of the image (string)</li>
+<li><strong>org.opencontainers.image.description</strong> Human-readable description of the software packaged in the image (string)</li>
+<li><strong>org.opencontainers.image.base.digest</strong> <a href="descriptor.md#digests">Digest</a> of the image this image is based on (string)
+<ul>
+<li>This SHOULD be the immediate image sharing zero-indexed layers with the image, such as from a Dockerfile <code>FROM</code> statement.</li>
+<li>This SHOULD NOT reference any other images used to generate the contents of the image (e.g., multi-stage Dockerfile builds).</li>
+</ul></li>
+<li><strong>org.opencontainers.image.base.name</strong> Image reference of the image this image is based on (string)
+<ul>
+<li>This SHOULD be image references in the format defined by <a href="https://github.com/distribution/distribution/blob/d0deff9cd6c2b8c82c6f3d1c713af51df099d07b/reference/reference.go">distribution/distribution</a>.</li>
+<li>This SHOULD be a fully qualified reference name, without any assumed default registry. (e.g., <code>registry.example.com/my-org/my-image:tag</code> instead of <code>my-org/my-image:tag</code>).</li>
+<li>This SHOULD be the immediate image sharing zero-indexed layers with the image, such as from a Dockerfile <code>FROM</code> statement.</li>
+<li>This SHOULD NOT reference any other images used to generate the contents of the image (e.g., multi-stage Dockerfile builds).</li>
+<li>If the <code>image.base.name</code> annotation is specified, the <code>image.base.digest</code> annotation SHOULD be the digest of the manifest referenced by the <code>image.ref.name</code> annotation.</li>
+</ul></li>
+<li><strong>org.opencontainers.referrers.filtersApplied</strong> Comma separated list of filters applied by the registry in the <a href="https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers">referrers listing</a> (string)</li>
+</ul>
+<h2 id="back-compatibility-with-label-schema">Back-compatibility with Label Schema</h2>
+<p><a href="https://label-schema.org">Label Schema</a> defined a number of conventional labels for container images, and these are now superceded by annotations with keys starting <strong>org.opencontainers.image</strong>.</p>
+<p>While users are encouraged to use the <strong>org.opencontainers.image</strong> keys, tools MAY choose to support compatible annotations using the <strong>org.label-schema</strong> prefix as follows.</p>
+<table>
+<thead>
+<tr class="header">
+<th><code>org.opencontainers.image</code> prefix</th>
+<th><code>org.label-schema</code> prefix</th>
+<th>Compatibility notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>created</code></td>
+<td><code>build-date</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="even">
+<td><code>url</code></td>
+<td><code>url</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="odd">
+<td><code>source</code></td>
+<td><code>vcs-url</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="even">
+<td><code>version</code></td>
+<td><code>version</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="odd">
+<td><code>revision</code></td>
+<td><code>vcs-ref</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="even">
+<td><code>vendor</code></td>
+<td><code>vendor</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="odd">
+<td><code>title</code></td>
+<td><code>name</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="even">
+<td><code>description</code></td>
+<td><code>description</code></td>
+<td>Compatible</td>
+</tr>
+<tr class="odd">
+<td><code>documentation</code></td>
+<td><code>usage</code></td>
+<td>Value is compatible if the documentation is located by a URL</td>
+</tr>
+<tr class="even">
+<td><code>authors</code></td>
+<td></td>
+<td>No equivalent in Label Schema</td>
+</tr>
+<tr class="odd">
+<td><code>licenses</code></td>
+<td></td>
+<td>No equivalent in Label Schema</td>
+</tr>
+<tr class="even">
+<td><code>ref.name</code></td>
+<td></td>
+<td>No equivalent in Label Schema</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>schema-version</code></td>
+<td>No equivalent in the OCI Image Spec</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>docker.*</code>, <code>rkt.*</code></td>
+<td>No equivalent in the OCI Image Spec</td>
+</tr>
+</tbody>
+</table>
+<h1 id="conversion-to-oci-runtime-configuration">Conversion to OCI Runtime Configuration</h1>
+<p>When extracting an OCI Image into an <a href="https://github.com/opencontainers/runtime-spec/blob/v1.0.0/bundle.md">OCI Runtime bundle</a>, two orthogonal components of the extraction are relevant:</p>
+<ol>
+<li>Extraction of the root filesystem from the set of <a href="layer.md">filesystem layers</a>.</li>
+<li>Conversion of the <a href="config.md">image configuration blob</a> to an <a href="https://github.com/opencontainers/runtime-spec/blob/v1.0.0/config.md">OCI Runtime configuration blob</a>.</li>
+</ol>
+<p>This section defines how to convert an <code>application/vnd.oci.image.config.v1+json</code> blob to an <a href="https://github.com/opencontainers/runtime-spec/blob/v1.0.0/config.md">OCI runtime configuration blob</a> (the latter component of extraction). The former component of extraction is defined <a href="layer.md">elsewhere</a> and is orthogonal to configuration of a runtime bundle. The values of runtime configuration properties not specified by this document are implementation-defined.</p>
+<p>A converter MUST rely on the OCI image configuration to build the OCI runtime configuration as described by this document; this will create the "default generated runtime configuration".</p>
+<p>The "default generated runtime configuration" MAY be overridden or combined with externally provided inputs from the caller. In addition, a converter MAY have its own implementation-defined defaults and extensions which MAY be combined with the "default generated runtime configuration". The restrictions in this document refer only to combining implementation-defined defaults with the "default generated runtime configuration". Externally provided inputs are considered to be a modification of the <code>application/vnd.oci.image.config.v1+json</code> used as a source, and such modifications have no restrictions.</p>
+<p>For example, externally provided inputs MAY cause an environment variable to be added, removed or changed. However an implementation-defined default SHOULD NOT result in an environment variable being removed or changed.</p>
+<h2 id="verbatim-fields">Verbatim Fields</h2>
+<p>Certain image configuration fields have an identical counterpart in the runtime configuration. Some of these are purely annotation-based fields, and have been extracted into a <a href="#annotation-fields">separate subsection</a>. A compliant configuration converter MUST extract the following fields verbatim to the corresponding field in the generated runtime configuration:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Image Field</th>
+<th>Runtime Field</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Config.WorkingDir</code></td>
+<td><code>process.cwd</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td><code>Config.Env</code></td>
+<td><code>process.env</code></td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td><code>Config.Entrypoint</code></td>
+<td><code>process.args</code></td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td><code>Config.Cmd</code></td>
+<td><code>process.args</code></td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>The converter MAY add additional entries to <code>process.env</code> but it SHOULD NOT add entries that have variable names present in <code>Config.Env</code>.</li>
+<li>If both <code>Config.Entrypoint</code> and <code>Config.Cmd</code> are specified, the converter MUST append the value of <code>Config.Cmd</code> to the value of <code>Config.Entrypoint</code> and set <code>process.args</code> to that combined value.</li>
+</ol>
+<h3 id="annotation-fields">Annotation Fields</h3>
+<p>These fields all affect the <code>annotations</code> of the runtime configuration, and are thus subject to <a href="#annotations">precedence</a>.</p>
+<table>
+<thead>
+<tr class="header">
+<th>Image Field</th>
+<th>Runtime Field</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>os</code></td>
+<td><code>annotations</code></td>
+<td>1,2</td>
+</tr>
+<tr class="even">
+<td><code>architecture</code></td>
+<td><code>annotations</code></td>
+<td>1,3</td>
+</tr>
+<tr class="odd">
+<td><code>variant</code></td>
+<td><code>annotations</code></td>
+<td>1,4</td>
+</tr>
+<tr class="even">
+<td><code>os.version</code></td>
+<td><code>annotations</code></td>
+<td>1,5</td>
+</tr>
+<tr class="odd">
+<td><code>os.features</code></td>
+<td><code>annotations</code></td>
+<td>1,6</td>
+</tr>
+<tr class="even">
+<td><code>author</code></td>
+<td><code>annotations</code></td>
+<td>1,7</td>
+</tr>
+<tr class="odd">
+<td><code>created</code></td>
+<td><code>annotations</code></td>
+<td>1,8</td>
+</tr>
+<tr class="even">
+<td><code>Config.Labels</code></td>
+<td><code>annotations</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><code>Config.StopSignal</code></td>
+<td><code>annotations</code></td>
+<td>1,9</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>If a user has explicitly specified this annotation with <code>Config.Labels</code>, then the value specified in this field takes lower <a href="#annotations">precedence</a> and the converter MUST instead use the value from <code>Config.Labels</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.os</code> in <code>annotations</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.architecture</code> in <code>annotations</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.variant</code> in <code>annotations</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.os.version</code> in <code>annotations</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.os.features</code> in <code>annotations</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.author</code> in <code>annotations</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.created</code> in <code>annotations</code>.</li>
+<li>The value of this field MUST be set as the value of <code>org.opencontainers.image.stopSignal</code> in <code>annotations</code>.</li>
+</ol>
+<h2 id="parsed-fields">Parsed Fields</h2>
+<p>Certain image configuration fields have a counterpart that must first be translated. A compliant configuration converter SHOULD parse all of these fields and set the corresponding fields in the generated runtime configuration:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Image Field</th>
+<th>Runtime Field</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Config.User</code></td>
+<td><code>process.user.*</code></td>
+</tr>
+</tbody>
+</table>
+<p>The method of parsing the above image fields are described in the following sections.</p>
+<h3 id="configuser"><code>Config.User</code></h3>
+<p>If the values of <a href="config.md#properties"><code>user</code> or <code>group</code></a> in <code>Config.User</code> are numeric (<code>uid</code> or <code>gid</code>) then the values MUST be copied verbatim to <code>process.user.uid</code> and <code>process.user.gid</code> respectively. If the values of <a href="config.md#properties"><code>user</code> or <code>group</code></a> in <code>Config.User</code> are not numeric (<code>user</code> or <code>group</code>) then a converter SHOULD resolve the user information using a method appropriate for the container's context. For Unix-like systems, this MAY involve resolution through NSS or parsing <code>/etc/passwd</code> from the extracted container's root filesystem to determine the values of <code>process.user.uid</code> and <code>process.user.gid</code>.</p>
+<p>In addition, a converter SHOULD set the value of <code>process.user.additionalGids</code> to a value corresponding to the user in the container's context described by <code>Config.User</code>. For Unix-like systems, this MAY involve resolution through NSS or parsing <code>/etc/group</code> and determining the group memberships of the user specified in <code>process.user.uid</code>. If the value of <a href="config.md#properties"><code>user</code></a> in <code>Config.User</code> is numeric, the converter SHOULD NOT modify <code>process.user.additionalGids</code>.</p>
+<p>If <code>Config.User</code> is not defined, the converted <code>process.user</code> value is implementation-defined. If <code>Config.User</code> does not correspond to a user in the container's context, the converter MUST return an error.</p>
+<h2 id="optional-fields">Optional Fields</h2>
+<p>Certain image configuration fields are not applicable to all conversion use cases, and thus are optional for configuration converters to implement. A compliant configuration converter SHOULD provide a way for users to extract these fields into the generated runtime configuration:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Image Field</th>
+<th>Runtime Field</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Config.ExposedPorts</code></td>
+<td><code>annotations</code></td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td><code>Config.Volumes</code></td>
+<td><code>mounts</code></td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>The runtime configuration does not have a corresponding field for this image field. However, converters SHOULD set the <a href="#config.exposedports"><code>org.opencontainers.image.exposedPorts</code> annotation</a>.</li>
+<li>Implementations SHOULD provide mounts for these locations such that application data is not written to the container's root filesystem. If a converter implements conversion for this field using mountpoints, it SHOULD set the <code>destination</code> of the mountpoint to the value specified in <code>Config.Volumes</code>. An implementation MAY seed the contents of the mount with data in the image at the same location. If a <em>new</em> image is created from a container based on the image described by this configuration, data in these paths SHOULD NOT be included in the <em>new</em> image. The other <code>mounts</code> fields are platform and context dependent, and thus are implementation-defined. Note that the implementation of <code>Config.Volumes</code> need not use mountpoints, as it is effectively a mask of the filesystem.</li>
+</ol>
+<h3 id="configexposedports"><code>Config.ExposedPorts</code></h3>
+<p>The OCI runtime configuration does not provide a way of expressing the concept of "container exposed ports". However, converters SHOULD set the <strong>org.opencontainers.image.exposedPorts</strong> annotation, unless doing so will <a href="#annotations">cause a conflict</a>.</p>
+<p><strong>org.opencontainers.image.exposedPorts</strong> is the list of values that correspond to the <a href="config.md">keys defined for <code>Config.ExposedPorts</code></a> (string, comma-separated values).</p>
+<h2 id="annotations-1">Annotations</h2>
+<p>There are three ways of annotating an OCI image in this specification:</p>
+<ol>
+<li><code>Config.Labels</code> in the <a href="config.md">configuration</a> of the image.</li>
+<li><code>annotations</code> in the <a href="manifest.md">manifest</a> of the image.</li>
+<li><code>annotations</code> in the <a href="image-index.md">image index</a> of the image.</li>
+</ol>
+<p>In addition, there are also implicit annotations that are defined by this section which are determined from the values of the image configuration. A converter SHOULD NOT attempt to extract annotations from <a href="manifest.md">manifests</a> or <a href="image-index.md">image indices</a>. If there is a conflict (same key but different value) between an implicit annotation (or annotation in <a href="manifest.md">manifests</a> or <a href="image-index.md">image indices</a>) and an explicitly specified annotation in <code>Config.Labels</code>, the value specified in <code>Config.Labels</code> MUST take precedence.</p>
+<p>A converter MAY add annotations which have keys not specified in the image. A converter MUST NOT modify the values of annotations specified in the image.</p>
+<h1 id="extensibility">Extensibility</h1>
+<p>Implementations that are reading/processing <a href="manifest.md">manifests</a> or <a href="image-index.md">image indexes</a> MUST NOT generate an error if they encounter an unknown property. Instead they MUST ignore unknown properties.</p>
+<h1 id="canonicalization">Canonicalization</h1>
+<ul>
+<li>OCI Images are <a href="https://en.wikipedia.org/wiki/Content-addressable_storage">content-addressable</a>. See <a href="descriptor.md">descriptors</a> for more.</li>
+<li>One benefit of content-addressable storage is easy deduplication.</li>
+<li>Many images might depend on a particular <a href="layer.md">layer</a>, but there will only be one blob in the <a href="image-layout.md">store</a>.</li>
+<li>With a different serialization, that same semantic layer would have a different hash, and if both versions of the layer are referenced there will be two blobs with the same semantic content.</li>
+<li>To allow efficient storage, implementations serializing content for blobs SHOULD use a canonical serialization.</li>
+<li>This increases the chance that different implementations can push the same semantic content to the store without creating redundant blobs.</li>
+</ul>
+<h2 id="json">JSON</h2>
+<p><a href="https://json.org/">JSON</a> content SHOULD be serialized as <a href="https://wiki.laptop.org/go/Canonical_JSON">canonical JSON</a>. Of the <a href="media-types.md">OCI Image Format Specification media types</a>, all the types ending in <code>+json</code> contain JSON content. Implementations:</p>
+<ul>
+<li><a href="https://golang.org/">Go</a>: <a href="https://github.com/docker/go/">github.com/docker/go</a>, which claims to implement <a href="https://wiki.laptop.org/go/Canonical_JSON">canonical JSON</a> except for Unicode normalization.</li>
+</ul>
+<h1 id="ebnf">EBNF</h1>
+<p>For field formats described in this specification, we use a limited subset of <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">Extended Backus-Naur Form</a>, similar to that used by the <a href="https://www.w3.org/TR/REC-xml/#sec-notation">XML specification</a>. Grammars present in the OCI specification are regular and can be converted to a single regular expressions. However, regular expressions are avoided to limit abiguity between regular expression syntax. By defining a subset of EBNF used here, the possibility of variation, misunderstanding or ambiguities from linking to a larger specification can be avoided.</p>
+<p>Grammars are made up of rules in the following form:</p>
+<pre><code>symbol ::= expression
+</code></pre>
+<p>We can say we have the production identified by symbol if the input is matched by the expression. Whitespace is completely ignored in rule definitions.</p>
+<h2 id="expressions">Expressions</h2>
+<p>The simplest expression is the literal, surrounded by quotes:</p>
+<pre><code>literal ::= &quot;matchthis&quot;
+</code></pre>
+<p>The above expression defines a symbol, "literal", that matches the exact input of "matchthis". Character classes are delineated by brackets (<code>[]</code>), describing either a set, range or multiple range of characters:</p>
+<pre><code>set := [abc]
+range := [A-Z]
+</code></pre>
+<p>The above symbol "set" would match one character of either "a", "b" or "c". The symbol "range" would match any character, "A" to "Z", inclusive. Currently, only matching for 7-bit ascii literals and character classes is defined, as that is all that is required by this specification. Multiple character ranges and explicit characters can be specified in a single character classes, as follows:</p>
+<pre><code>multipleranges := [a-zA-Z=-]
+</code></pre>
+<p>The above matches the characters in the range <code>A</code> to <code>Z</code>, <code>a</code> to <code>z</code> and the individual characters <code>-</code> and <code>=</code>.</p>
+<p>Expressions can be made up of one or more expressions, such that one must be followed by the other. This is known as an implicit concatenation operator. For example, to satisfy the following rule, both <code>A</code> and <code>B</code> must be matched to satisfy the rule:</p>
+<pre><code>symbol ::= A B
+</code></pre>
+<p>Each expression must be matched once and only once, <code>A</code> followed by <code>B</code>. To support the description of repetition and optional match criteria, the postfix operators <code>*</code> and <code>+</code> are defined. <code>*</code> indicates that the preceeding expression can be matched zero or more times. <code>+</code> indicates that the preceeding expression must be matched one or more times. These appear in the following form:</p>
+<pre><code>zeroormore ::= expression*
+oneormore ::= expression+
+</code></pre>
+<p>Parentheses are used to group expressions into a larger expression:</p>
+<pre><code>group ::= (A B)
+</code></pre>
+<p>Like simpler expressions above, operators can be applied to groups, as well. To allow for alternates, we also define the infix operator <code>|</code>.</p>
+<pre><code>oneof ::= A | B
+</code></pre>
+<p>The above indicates that the expression should match one of the expressions, <code>A</code> or <code>B</code>.</p>
+<h2 id="precedence">Precedence</h2>
+<p>The operator precedence is in the following order:</p>
+<ul>
+<li>Terminals (literals and character classes)</li>
+<li>Grouping <code>()</code></li>
+<li>Unary operators <code>+*</code></li>
+<li>Concatenation</li>
+<li>Alternates <code>|</code></li>
+</ul>
+<p>The precedence can be better described using grouping to show equivalents. Concatenation has higher precedence than alernates, such <code>A B | C D</code> is equivalent to <code>(A B) | (C D)</code>. Unary operators have higher precedence than alternates and concatenation, such that <code>A+ | B+</code> is equivalent to <code>(A+) | (B+)</code>.</p>
+<h2 id="examples-1">Examples</h2>
+<p>The following combines the previous definitions to match a simple, relative path name, describing the individual components:</p>
+<pre><code>path      ::= component (&quot;/&quot; component)*
+component ::= [a-z]+
+</code></pre>
+<p>The production "component" is one or more lowercase letters. A "path" is then at least one component, possibly followed by zero or more slash-component pairs. The above can be converted into the following regular expression:</p>
+<pre><code>[a-z]+(?:/[a-z]+)*
+</code></pre>
+<h1 id="oci-image-implementations">OCI Image Implementations</h1>
+<p>Projects or Companies currently adopting the OCI Image Specification</p>
+<ul>
+<li><a href="https://github.com/projectatomic/skopeo">projectatomic/skopeo</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-manifest-formats.html">Amazon Elastic Container Registry (ECR)</a> (<a href="https://aws.amazon.com/about-aws/whats-new/2017/01/amazon-ecr-supports-docker-image-manifest-v2-schema-2/">announcement</a>)</li>
+<li><a href="https://docs.microsoft.com/azure/container-registry/container-registry-image-formats#oci-images">Azure Container Registry (ACR)</a></li>
+<li><a href="https://github.com/openSUSE/umoci">openSUSE/umoci</a></li>
+<li><a href="https://github.com/cloudfoundry/grootfs">cloudfoundry/grootfs</a> (<a href="https://github.com/cloudfoundry/grootfs/blob/c3da26e1e463b51be1add289032f3dca6698b335/fetcher/remote/docker_src.go">source</a>)</li>
+<li><a href="https://issues.apache.org/jira/browse/MESOS-5011">Mesos plans</a> (<a href="https://docs.google.com/document/d/1Pus7D-inIBoLSIPyu3rl_apxvUhtp3rp0_b0Ttr2Xww/edit#heading=h.hrvk2wboog4p">design doc</a>)</li>
+<li><a href="https://github.com/docker">Docker</a>
+<ul>
+<li><a href="https://github.com/docker/docker/pull/26369">docker/docker (<code>docker save/load</code> WIP)</a></li>
+<li><a href="https://github.com/distribution/distribution/pull/2076">distribution/distribution (registry PR)</a></li>
+</ul></li>
+<li><a href="https://github.com/containerd/containerd">containerd/containerd</a></li>
+<li><a href="https://github.com/containers/">Containers</a>
+<ul>
+<li><a href="https://github.com/containers/build">containers/build</a></li>
+<li><a href="https://github.com/containers/image">containers/image</a></li>
+<li><a href="https://github.com/containers/oci-spec-rs">containers/oci-spec-rs</a></li>
+<li><a href="https://github.com/containers/libocispec">containers/libocispec</a></li>
+</ul></li>
+<li><a href="https://github.com/krustlet/oci-distribution">krustlet/oci-distribution</a></li>
+<li><a href="https://github.com/coreos/rkt">coreos/rkt</a></li>
+<li><a href="https://github.com/box-builder/box">box-builder/box</a></li>
+<li><a href="https://github.com/coolljt0725/docker2oci">coolljt0725/docker2oci</a></li>
+<li><a href="https://github.com/regclient/regclient">regclient/regclient</a></li>
+</ul>
+<p><em>(to add your project please open a <a href="https://github.com/opencontainers/image-spec/pulls">pull-request</a>)</em></p>
+</body>
+</html>

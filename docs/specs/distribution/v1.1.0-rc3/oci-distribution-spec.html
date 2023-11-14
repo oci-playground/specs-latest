@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Open Container Initiative Distribution Specification</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <title>distribution-spec 1.1.0-rc.3+dev</title>
+  <base href="https://raw.githubusercontent.com/opencontainers/distribution-spec/1.1.0-rc.3+dev/">
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Open Container Initiative Distribution Specification</h1>
+</header>
+<h1 id="open-container-initiative-distribution-specification">Open Container Initiative Distribution Specification</h1>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#overview">Overview</a>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#historical-context">Historical Context</a></li>
+<li><a href="#definitions">Definitions</a></li>
+</ul></li>
+<li><a href="#use-cases">Use Cases</a></li>
+<li><a href="#notational-conventions">Notational Conventions</a></li>
+<li><a href="#conformance">Conformance</a>
+<ul>
+<li><a href="#official-certification">Official Certification</a></li>
+<li><a href="#requirements">Requirements</a></li>
+<li><a href="#workflow-categories">Workflow Categories</a>
+<ol>
+<li><a href="#pull">Pull</a></li>
+<li><a href="#push">Push</a></li>
+<li><a href="#content-discovery">Content Discovery</a></li>
+<li><a href="#content-management">Content Management</a></li>
+</ol></li>
+</ul></li>
+<li><a href="#backwards-compatibility">Backwards Compatibility</a>
+<ul>
+<li><a href="#unavailable-referrers-api">Unavailable Referrers API</a></li>
+</ul></li>
+<li><a href="#upgrade-procedures">Upgrade Procedures</a>
+<ul>
+<li><a href="#enabling-the-referrers-api">Enabling the Referrers API</a></li>
+</ul></li>
+<li><a href="#api">API</a>
+<ul>
+<li><a href="#endpoints">Endpoints</a></li>
+<li><a href="#error-codes">Error Codes</a></li>
+<li><a href="#warnings">Warnings</a></li>
+</ul></li>
+<li><a href="#appendix">Appendix</a></li>
+</ul>
+<h2 id="overview">Overview</h2>
+<h3 id="introduction">Introduction</h3>
+<p>The <strong>Open Container Initiative Distribution Specification</strong> (a.k.a. "OCI Distribution Spec") defines an API protocol to facilitate and standardize the distribution of content.</p>
+<p>The specification is designed to be agnostic of content types. OCI Image types are currently the most prominent, which are defined in the <a href="https://github.com/opencontainers/image-spec">Open Container Initiative Image Format Specification</a> (a.k.a. "OCI Image Spec").</p>
+<h3 id="historical-context">Historical Context</h3>
+<p>The spec is based on the specification for the Docker Registry HTTP API V2 protocol <sup><a href="#appendix">apdx-1</a></sup>.</p>
+<p>For relevant details and a history leading up to this specification, please see the following issues:</p>
+<ul>
+<li><a href="https://github.com/moby/moby/issues/8093">moby/moby#8093</a></li>
+<li><a href="https://github.com/moby/moby/issues/9015">moby/moby#9015</a></li>
+<li><a href="https://github.com/docker/docker-registry/issues/612">docker/docker-registry#612</a></li>
+</ul>
+<h4 id="legacy-docker-support-http-headers">Legacy Docker support HTTP headers</h4>
+<p>Because of the origins this specification, the client MAY encounter Docker-specific headers, such as <code>Docker-Content-Digest</code>, or <code>Docker-Distribution-API-Version</code>. These headers are OPTIONAL and clients SHOULD NOT depend on them.</p>
+<h4 id="legacy-docker-support-error-codes">Legacy Docker support error codes</h4>
+<p>The client MAY encounter error codes targeting Docker schema1 manifests, such as <code>TAG_INVALID</code>, or <code>MANIFEST_UNVERIFIED</code>. These error codes are OPTIONAL and clients SHOULD NOT depend on them.</p>
+<h3 id="definitions">Definitions</h3>
+<p>Several terms are used frequently in this document and warrant basic definitions:</p>
+<ul>
+<li><strong>Registry</strong>: a service that handles the required APIs defined in this specification</li>
+<li><strong>Client</strong>: a tool that communicates with Registries</li>
+<li><strong>Push</strong>: the act of uploading blobs and manifests to a registry</li>
+<li><strong>Pull</strong>: the act of downloading blobs and manifests from a registry</li>
+<li><strong>Blob</strong>: the binary form of content that is stored by a registry, addressable by a digest</li>
+<li><strong>Manifest</strong>: a JSON document uploaded via the manifests endpoint. A manifest may reference other manifests and blobs in a repository via descriptors. Examples of manifests are defined under the OCI Image Spec <sup><a href="#appendix">apdx-2</a></sup>, such as the image manifest and image index (and legacy manifests).</sup></li>
+<li><strong>Image Index</strong>: a manifest containing a list of manifests, defined under the OCI Image Spec <sup><a href="#appendix">apdx-6</a></sup>.</li>
+<li><strong>Image Manifest</strong>: a manifest containing a config descriptor and an indexed list of layers, commonly used for container images, defined under the OCI Image Spec <sup><a href="#appendix">apdx-2</a></sup>.</li>
+<li><strong>Config</strong>: a blob referenced in the image manifest which contains metadata. Config is defined under the OCI Image Spec <sup><a href="#appendix">apdx-4</a></sup>.</li>
+<li><strong>Object</strong>: one conceptual piece of content stored as blobs with an accompanying manifest. (This was previously described as an "artifact")</li>
+<li><strong>Descriptor</strong>: a reference that describes the type, metadata and content address of referenced content. Descriptors are defined under the OCI Image Spec <sup><a href="#appendix">apdx-5</a></sup>.</li>
+<li><strong>Digest</strong>: a unique identifier created from a cryptographic hash of a Blob's content. Digests are defined under the OCI Image Spec <sup><a href="#appendix">apdx-3</a></sup></li>
+<li><strong>Tag</strong>: a custom, human-readable manifest identifier</li>
+<li><strong>Subject</strong>: an association from one manifest to another, typically used to attach an artifact to an image.</li>
+<li><strong>Referrers List</strong>: a list of manifests with a subject relationship to a specified digest. The referrers list is generated with a <a href="#listing-referrers">query to a registry</a>.</li>
+</ul>
+<h2 id="notational-conventions">Notational Conventions</h2>
+<p>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" are to be interpreted as described in <a href="https://tools.ietf.org/html/rfc2119">RFC 2119</a> (Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997).</p>
+<h2 id="use-cases">Use Cases</h2>
+<h3 id="content-verification">Content Verification</h3>
+<p>A container engine would like to run verified image named "library/ubuntu", with the tag "latest". The engine contacts the registry, requesting the manifest for "library/ubuntu:latest". An untrusted registry returns a manifest. After each layer is downloaded, the engine verifies the digest of the layer, ensuring that the content matches that specified by the manifest.</p>
+<h3 id="resumable-push">Resumable Push</h3>
+<p>Company X's build servers lose connectivity to a distribution endpoint before completing a blob transfer. After connectivity returns, the build server attempts to re-upload the blob. The registry notifies the build server that the upload has already been partially attempted. The build server responds by only sending the remaining data to complete the blob transfer.</p>
+<h3 id="resumable-pull">Resumable Pull</h3>
+<p>Company X is having more connectivity problems but this time in their deployment datacenter. When downloading a blob, the connection is interrupted before completion. The client keeps the partial data and uses http <code>Range</code> requests to avoid downloading repeated data.</p>
+<h3 id="layer-upload-de-duplication">Layer Upload De-duplication</h3>
+<p>Company Y's build system creates two identical layers from build processes A and B. Build process A completes uploading the layer before B. When process B attempts to upload the layer, the registry indicates that its not necessary because the layer is already known.</p>
+<p>If process A and B upload the same layer at the same time, both operations will proceed and the first to complete will be stored in the registry. Even in the case where both uploads are accepted, the registry may securely only store one copy of the layer since the computed digests match.</p>
+<h2 id="conformance">Conformance</h2>
+<p>For more information on testing for conformance, please see the <a href="./conformance/README.md">conformance README</a></p>
+<h3 id="official-certification">Official Certification</h3>
+<p>Registry providers can self-certify by submitting conformance results to <a href="https://github.com/opencontainers/oci-conformance">opencontainers/oci-conformance</a>.</p>
+<h3 id="requirements">Requirements</h3>
+<p>Registry conformance applies to the following workflow categories:</p>
+<ol>
+<li><strong>Pull</strong> - Clients are able to pull from the registry</li>
+<li><strong>Push</strong> - Clients are able to push to the registry</li>
+<li><strong>Content Discovery</strong> - Clients are able to list or otherwise query the content stored in the registry</li>
+<li><strong>Content Management</strong> - Clients are able to control the full life-cycle of the content stored in the registry</li>
+</ol>
+<p>All registries conforming to this specification MUST support, at a minimum, all APIs in the <strong>Pull</strong> category.</p>
+<p>Registries SHOULD also support the <strong>Push</strong>, <strong>Content Discovery</strong>, and <strong>Content Management</strong> categories. A registry claiming conformance with one of these specification categories MUST implement all APIs in the claimed category.</p>
+<p>In order to test a registry's conformance against these workflow categories, please use the <a href="./conformance/">conformance testing tool</a>.</p>
+<h3 id="workflow-categories">Workflow Categories</h3>
+<h4 id="pull">Pull</h4>
+<p>The process of pulling an object centers around retrieving two components: the manifest and one or more blobs.</p>
+<p>Typically, the first step in pulling an object is to retrieve the manifest. However, you MAY retrieve content from the registry in any order.</p>
+<h5 id="pulling-manifests">Pulling manifests</h5>
+<p>To pull a manifest, perform a <code>GET</code> request to a URL in the following form: <code>/v2/&lt;name&gt;/manifests/&lt;reference&gt;</code> <sup><a href="#endpoints">end-3</a></sup></p>
+<p><code>&lt;name&gt;</code> refers to the namespace of the repository. <code>&lt;reference&gt;</code> MUST be either (a) the digest of the manifest or (b) a tag. The <code>&lt;reference&gt;</code> MUST NOT be in any other format. Throughout this document, <code>&lt;name&gt;</code> MUST match the following regular expression:</p>
+<p><code>[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*</code></p>
+<p>Throughout this document, <code>&lt;reference&gt;</code> as a tag MUST be at most 128 characters in length and MUST match the following regular expression:</p>
+<p><code>[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}</code></p>
+<p>The client SHOULD include an <code>Accept</code> header indicating which manifest content types it supports. In a successful response, the <code>Content-Type</code> header will indicate the type of the returned manifest. The <code>Content-Type</code> header SHOULD match what the client <a href="#pushing-manifests">pushed as the manifest's <code>Content-Type</code></a>. If the manifest has a <code>mediaType</code> field, clients SHOULD reject unless the <code>mediaType</code> field's value matches the type specified by the <code>Content-Type</code> header. For more information on the use of <code>Accept</code> headers and content negotiation, please see <a href="./content-negotiation.md">Content Negotiation</a>.</p>
+<p>A GET request to an existing manifest URL MUST provide the expected manifest, with a response code that MUST be <code>200 OK</code>. A successful response SHOULD contain the digest of the uploaded blob in the header <code>Docker-Content-Digest</code>.</p>
+<p>The <code>Docker-Content-Digest</code> header, if present on the response, returns the canonical digest of the uploaded blob which MAY differ from the provided digest. If the digest does differ, it MAY be the case that the hashing algorithms used do not match. See <a href="https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md#digests">Content Digests</a> <sup><a href="#appendix">apdx-3</a></sup> for information on how to detect the hashing algorithm in use. Most clients MAY ignore the value, but if it is used, the client MUST verify the value against the uploaded blob data.</p>
+<p>If the manifest is not found in the registry, the response code MUST be <code>404 Not Found</code>.</p>
+<h5 id="pulling-blobs">Pulling blobs</h5>
+<p>To pull a blob, perform a <code>GET</code> request to a URL in the following form: <code>/v2/&lt;name&gt;/blobs/&lt;digest&gt;</code> <sup><a href="#endpoints">end-2</a></sup></p>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and <code>&lt;digest&gt;</code> is the blob's digest.</p>
+<p>A GET request to an existing blob URL MUST provide the expected blob, with a response code that MUST be <code>200 OK</code>. A successful response SHOULD contain the digest of the uploaded blob in the header <code>Docker-Content-Digest</code>. If present, the value of this header MUST be a digest matching that of the response body.</p>
+<p>If the blob is not found in the registry, the response code MUST be <code>404 Not Found</code>.</p>
+<h5 id="checking-if-content-exists-in-the-registry">Checking if content exists in the registry</h5>
+<p>In order to verify that a repository contains a given manifest or blob, make a <code>HEAD</code> request to a URL in the following form:</p>
+<p><code>/v2/&lt;name&gt;/manifests/&lt;reference&gt;</code> <sup><a href="#endpoints">end-3</a></sup> (for manifests), or</p>
+<p><code>/v2/&lt;name&gt;/blobs/&lt;digest&gt;</code> <sup><a href="#endpoints">end-2</a></sup> (for blobs).</p>
+<p>A HEAD request to an existing blob or manifest URL MUST return <code>200 OK</code>. A successful response SHOULD contain the digest of the uploaded blob in the header <code>Docker-Content-Digest</code>.</p>
+<p>If the blob or manifest is not found in the registry, the response code MUST be <code>404 Not Found</code>.</p>
+<h4 id="push">Push</h4>
+<p>Pushing an object typically works in the opposite order as a pull: the blobs making up the object are uploaded first, and the manifest last. A useful diagram is provided <a href="https://github.com/google/go-containerregistry/tree/d7f8d06c87ed209507dd5f2d723267fe35b38a9f/pkg/v1/remote#anatomy-of-an-image-upload">here</a>.</p>
+<p>A registry MAY reject a manifest of any type uploaded to the manifest endpoint if it references manifests or blobs that do not exist in the registry. A registry MUST accept an otherwise valid manifest with a <code>subject</code> field that references a manifest that does not exist, allowing clients to push a manifest and referrers to that manifest in either order. When a manifest is rejected for these reasons, it MUST result in one or more <code>MANIFEST_BLOB_UNKNOWN</code> errors <sup><a href="#error-codes">code-1</a></sup>.</p>
+<h5 id="pushing-blobs">Pushing blobs</h5>
+<p>There are two ways to push blobs: chunked or monolithic.</p>
+<h5 id="pushing-a-blob-monolithically">Pushing a blob monolithically</h5>
+<p>There are two ways to push a blob monolithically:</p>
+<ol>
+<li>A <code>POST</code> request followed by a <code>PUT</code> request</li>
+<li>A single <code>POST</code> request</li>
+</ol>
+<hr />
+<h6 id="post-then-put">POST then PUT</h6>
+<p>To push a blob monolithically by using a POST request followed by a PUT request, there are two steps:</p>
+<ol>
+<li>Obtain a session id (upload URL)</li>
+<li>Upload the blob to said URL</li>
+</ol>
+<p>To obtain a session ID, perform a <code>POST</code> request to a URL in the following format:</p>
+<p><code>/v2/&lt;name&gt;/blobs/uploads/</code> <sup><a href="#endpoints">end-4a</a></sup></p>
+<p>Here, <code>&lt;name&gt;</code> refers to the namespace of the repository. Upon success, the response MUST have a code of <code>202 Accepted</code>, and MUST include the following header:</p>
+<pre><code>Location: &lt;location&gt;
+</code></pre>
+<p>The <code>&lt;location&gt;</code> MUST contain a UUID representing a unique session ID for the upload to follow. The <code>&lt;location&gt;</code> does not necessarily need to be provided by the registry itself. In fact, offloading to another server can be a <a href="https://www.backblaze.com/blog/design-thinking-b2-apis-the-hidden-costs-of-s3-compatibility/">better strategy</a>.</p>
+<p>Optionally, the location MAY be absolute (containing the protocol and/or hostname), or it MAY be relative (containing just the URL path). For more information, see <a href="https://tools.ietf.org/html/rfc7231#section-7.1.2">RFC 7231</a>.</p>
+<p>Once the <code>&lt;location&gt;</code> has been obtained, perform the upload proper by making a <code>PUT</code> request to the following URL path, and with the following headers and body:</p>
+<p><code>&lt;location&gt;?digest=&lt;digest&gt;</code> <sup><a href="#endpoints">end-6</a></sup></p>
+<pre><code>Content-Length: &lt;length&gt;
+Content-Type: application/octet-stream
+</code></pre>
+<pre><code>&lt;upload byte stream&gt;
+</code></pre>
+<p>The <code>&lt;location&gt;</code> MAY contain critical query parameters. Additionally, it SHOULD match exactly the <code>&lt;location&gt;</code> obtained from the <code>POST</code> request. It SHOULD NOT be assembled manually by clients except where absolute/relative conversion is necessary.</p>
+<p>Here, <code>&lt;digest&gt;</code> is the digest of the blob being uploaded, and <code>&lt;length&gt;</code> is its size in bytes.</p>
+<p>Upon successful completion of the request, the response MUST have code <code>201 Created</code> and MUST have the following header:</p>
+<pre><code>Location: &lt;blob-location&gt;
+</code></pre>
+<p>With <code>&lt;blob-location&gt;</code> being a pullable blob URL.</p>
+<hr />
+<h6 id="single-post">Single POST</h6>
+<p>Registries MAY support pushing blobs using a single POST request.</p>
+<p>To push a blob monolithically by using a single POST request, perform a <code>POST</code> request to a URL in the following form, and with the following headers and body:</p>
+<p><code>/v2/&lt;name&gt;/blobs/uploads/?digest=&lt;digest&gt;</code> <sup><a href="#endpoints">end-4b</a></sup></p>
+<pre><code>Content-Length: &lt;length&gt;
+Content-Type: application/octet-stream
+</code></pre>
+<pre><code>&lt;upload byte stream&gt;
+</code></pre>
+<p>Here, <code>&lt;name&gt;</code> is the repository's namespace, <code>&lt;digest&gt;</code> is the blob's digest, and <code>&lt;length&gt;</code> is the size (in bytes) of the blob.</p>
+<p>The <code>Content-Length</code> header MUST match the blob's actual content length. Likewise, the <code>&lt;digest&gt;</code> MUST match the blob's digest.</p>
+<p>Registries that do not support single request monolithic uploads SHOULD return a <code>202 Accepted</code> status code and <code>Location</code> header and clients SHOULD proceed with a subsequent PUT request, as described by the <a href="#post-then-put">POST then PUT upload method</a>.</p>
+<p>Successful completion of the request MUST return a <code>201 Created</code> and MUST include the following header:</p>
+<pre><code>Location: &lt;blob-location&gt;
+</code></pre>
+<p>Here, <code>&lt;blob-location&gt;</code> is a pullable blob URL. This location does not necessarily have to be served by your registry, for example, in the case of a signed URL from some cloud storage provider that your registry generates.</p>
+<h5 id="pushing-a-blob-in-chunks">Pushing a blob in chunks</h5>
+<p>A chunked blob upload is accomplished in three phases:</p>
+<ol>
+<li>Obtain a session ID (upload URL) (<code>POST</code>)</li>
+<li>Upload the chunks (<code>PATCH</code>)</li>
+<li>Close the session (<code>PUT</code>)</li>
+</ol>
+<p>For information on obtaining a session ID, reference the above section on pushing a blob monolithically via the <code>POST</code>/<code>PUT</code> method. The process remains unchanged for chunked upload, except that the post request MUST include the following header:</p>
+<pre><code>Content-Length: 0
+</code></pre>
+<p>If the registry has a minimum chunk size, the response SHOULD include the following header, where <code>&lt;size&gt;</code> is the size in bytes (see the blob <code>PATCH</code> definition for usage):</p>
+<pre><code>OCI-Chunk-Min-Length: &lt;size&gt;
+</code></pre>
+<p>Please reference the above section for restrictions on the <code>&lt;location&gt;</code>.</p>
+<hr />
+<p>To upload a chunk, issue a <code>PATCH</code> request to a URL path in the following format, and with the following headers and body:</p>
+<p>URL path: <code>&lt;location&gt;</code> <sup><a href="#endpoints">end-5</a></sup></p>
+<pre><code>Content-Type: application/octet-stream
+Content-Range: &lt;range&gt;
+Content-Length: &lt;length&gt;
+</code></pre>
+<pre><code>&lt;upload byte stream of chunk&gt;
+</code></pre>
+<p>The <code>&lt;location&gt;</code> refers to the URL obtained from the preceding <code>POST</code> request.</p>
+<p>The <code>&lt;range&gt;</code> refers to the byte range of the chunk, and MUST be inclusive on both ends. The first chunk's range MUST begin with <code>0</code>. It MUST match the following regular expression:</p>
+<pre class="regexp"><code>^[0-9]+-[0-9]+$
+</code></pre>
+<p>The <code>&lt;length&gt;</code> is the content-length, in bytes, of the current chunk. If the registry provides a <code>OCI-Chunk-Min-Length</code> header in the <code>PUT</code> response, the size of each chunk, except for the final chunk, SHOULD be greater or equal to that value. The final chunk MAY have any length.</p>
+<p>Each successful chunk upload MUST have a <code>202 Accepted</code> response code, and MUST have the following headers:</p>
+<pre><code>Location: &lt;location&gt;
+Range: 0-&lt;end-of-range&gt;
+</code></pre>
+<p>Each consecutive chunk upload SHOULD use the <code>&lt;location&gt;</code> provided in the response to the previous chunk upload.</p>
+<p>The <code>&lt;end-of-range&gt;</code> value is the position of the last uploaded byte.</p>
+<p>Chunks MUST be uploaded in order, with the first byte of a chunk being the last chunk's <code>&lt;end-of-range&gt;</code> plus one. If a chunk is uploaded out of order, the registry MUST respond with a <code>416 Requested Range Not Satisfiable</code> code. A GET request may be used to retrieve the current valid offset and upload location.</p>
+<p>The final chunk MAY be uploaded using a <code>PATCH</code> request or it MAY be uploaded in the closing <code>PUT</code> request. Regardless of how the final chunk is uploaded, the session MUST be closed with a <code>PUT</code> request.</p>
+<hr />
+<p>To close the session, issue a <code>PUT</code> request to a url in the following format, and with the following headers (and optional body, depending on whether or not the final chunk was uploaded already via a <code>PATCH</code> request):</p>
+<p><code>&lt;location&gt;?digest=&lt;digest&gt;</code></p>
+<pre><code>Content-Length: &lt;length of chunk, if present&gt;
+Content-Range: &lt;range of chunk, if present&gt;
+Content-Type: application/octet-stream &lt;if chunk provided&gt;
+</code></pre>
+<pre><code>OPTIONAL: &lt;final chunk byte stream&gt;
+</code></pre>
+<p>The closing <code>PUT</code> request MUST include the <code>&lt;digest&gt;</code> of the whole blob (not the final chunk) as a query parameter.</p>
+<p>The response to a successful closing of the session MUST be <code>201 Created</code>, and MUST contain the following header:</p>
+<pre><code>Location: &lt;blob-location&gt;
+</code></pre>
+<p>Here, <code>&lt;blob-location&gt;</code> is a pullable blob URL.</p>
+<hr />
+<p>To get the current status after a 416 error, issue a <code>GET</code> request to a URL <code>&lt;location&gt;</code> <sup><a href="#endpoints">end-13</a></sup>.</p>
+<p>The <code>&lt;location&gt;</code> refers to the URL obtained from any preceding <code>POST</code> or <code>PATCH</code> request.</p>
+<p>The response to an active upload <code>&lt;location&gt;</code> MUST be a <code>204 No Content</code> response code, and MUST have the following headers:</p>
+<pre><code>Location: &lt;location&gt;
+Range: 0-&lt;end-of-range&gt;
+</code></pre>
+<p>The following chunk upload SHOULD use the <code>&lt;location&gt;</code> provided in the response.</p>
+<p>The <code>&lt;end-of-range&gt;</code> value is the position of the last uploaded byte.</p>
+<h5 id="mounting-a-blob-from-another-repository">Mounting a blob from another repository</h5>
+<p>If a necessary blob exists already in another repository within the same registry, it can be mounted into a different repository via a <code>POST</code> request in the following format:</p>
+<p><code>/v2/&lt;name&gt;/blobs/uploads/?mount=&lt;digest&gt;&amp;from=&lt;other_name&gt;</code> <sup><a href="#endpoints">end-11</a></sup>.</p>
+<p>In this case, <code>&lt;name&gt;</code> is the namespace to which the blob will be mounted. <code>&lt;digest&gt;</code> is the digest of the blob to mount, and <code>&lt;other_name&gt;</code> is the namespace from which the blob should be mounted. This step is usually taken in place of the previously-described <code>POST</code> request to <code>/v2/&lt;name&gt;/blobs/uploads/</code> <sup><a href="#endpoints">end-4a</a></sup> (which is used to initiate an upload session).</p>
+<p>The response to a successful mount MUST be <code>201 Created</code>, and MUST contain the following header:</p>
+<pre><code>Location: &lt;blob-location&gt;
+</code></pre>
+<p>The Location header will contain the registry URL to access the accepted layer file. The Docker-Content-Digest header returns the canonical digest of the uploaded blob which MAY differ from the provided digest. Most clients MAY ignore the value but if it is used, the client SHOULD verify the value against the uploaded blob data.</p>
+<p>The registry MAY treat the <code>from</code> parameter as optional, and it MAY cross-mount the blob if it can be found.</p>
+<p>Alternatively, if a registry does not support cross-repository mounting or is unable to mount the requested blob, it SHOULD return a <code>202</code>. This indicates that the upload session has begun and that the client MAY proceed with the upload.</p>
+<h5 id="pushing-manifests">Pushing Manifests</h5>
+<p>To push a manifest, perform a <code>PUT</code> request to a path in the following format, and with the following headers and body: <code>/v2/&lt;name&gt;/manifests/&lt;reference&gt;</code> <sup><a href="#endpoints">end-7</a></sup></p>
+<p>Clients SHOULD set the <code>Content-Type</code> header to the type of the manifest being pushed. All manifests SHOULD include a <code>mediaType</code> field declaring the type of the manifest being pushed. If a manifest includes a <code>mediaType</code> field, clients MUST set the <code>Content-Type</code> header to the value specified by the <code>mediaType</code> field.</p>
+<pre><code>Content-Type: application/vnd.oci.image.manifest.v1+json
+</code></pre>
+<p>Manifest byte stream:</p>
+<pre><code>{
+  &quot;mediaType&quot;: &quot;application/vnd.oci.image.manifest.v1+json&quot;,
+  ...
+}
+</code></pre>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and the <code>&lt;reference&gt;</code> MUST be either a) a digest or b) a tag.</p>
+<p>The uploaded manifest MUST reference any blobs that make up the object. However, the list of blobs MAY be empty.</p>
+<p>The registry MUST store the manifest in the exact byte representation provided by the client. Upon a successful upload, the registry MUST return response code <code>201 Created</code>, and MUST have the following header:</p>
+<pre><code>Location: &lt;location&gt;
+</code></pre>
+<p>The <code>&lt;location&gt;</code> is a pullable manifest URL. The Docker-Content-Digest header returns the canonical digest of the uploaded blob, and MUST be equal to the client provided digest. Clients MAY ignore the value but if it is used, the client SHOULD verify the value against the uploaded blob data.</p>
+<p>An attempt to pull a nonexistent repository MUST return response code <code>404 Not Found</code>.</p>
+<p>A registry SHOULD enforce some limit on the maximum manifest size that it can accept. A registry that enforces this limit SHOULD respond to a request to push a manifest over this limit with a response code <code>413 Payload Too Large</code>. Client and registry implementations SHOULD expect to be able to support manifest pushes of at least 4 megabytes.</p>
+<h6 id="pushing-manifests-with-subject">Pushing Manifests with Subject</h6>
+<p>When processing a request for an image manifest with the <code>subject</code> field, a registry implementation that supports the <a href="#listing-referrers">referrers API</a> MUST respond with the response header <code>OCI-Subject: &lt;subject digest&gt;</code> to indicate to the client that the registry processed the request's <code>subject</code>.</p>
+<p>When pushing a manifest with the <code>subject</code> field and the <a href="#listing-referrers">referrers API</a> returns a 404 or the <code>OCI-Subject</code> header was not set, the client MUST:</p>
+<ol>
+<li>Pull the current referrers list using the <a href="#referrers-tag-schema">referrers tag schema</a>.</li>
+<li>If that pull returns a manifest other than the expected image index, the client SHOULD report a failure and skip the remaining steps.</li>
+<li>If the tag returns a 404, the client MUST begin with an empty image index.</li>
+<li>Verify the descriptor for the manifest is not already in the referrers list (duplicate entries SHOULD NOT be created).</li>
+<li>Append a descriptor for the pushed manifest to the manifests in the referrers list. The value of the <code>artifactType</code> MUST be set to the <code>artifactType</code> value in the image manifest, if present. If the <code>artifactType</code> is empty or missing in the image manifest, the value of <code>artifactType</code> MUST be set to the config descriptor <code>mediaType</code> value. All annotations from the image manifest MUST be copied to this descriptor.</li>
+<li>Push the updated referrers list using the same <a href="#referrers-tag-schema">referrers tag schema</a>. The client MAY use conditional HTTP requests to prevent overwriting a referrers list that has changed since it was first pulled.</li>
+</ol>
+<h4 id="content-discovery">Content Discovery</h4>
+<h5 id="listing-tags">Listing Tags</h5>
+<p>To fetch the list of tags, perform a <code>GET</code> request to a path in the following format: <code>/v2/&lt;name&gt;/tags/list</code> <sup><a href="#endpoints">end-8a</a></sup></p>
+<p><code>&lt;name&gt;</code> is the namespace of the repository. Assuming a repository is found, this request MUST return a <code>200 OK</code> response code. The list of tags MAY be empty if there are no tags on the repository. If the list is not empty, the tags MUST be in lexical order (i.e. case-insensitive alphanumeric order).</p>
+<p>Upon success, the response MUST be a json body in the following format:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true"></a><span class="fu">{</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true"></a>  <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;name&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true"></a>  <span class="dt">&quot;tags&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true"></a>    <span class="st">&quot;&lt;tag1&gt;&quot;</span><span class="ot">,</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true"></a>    <span class="st">&quot;&lt;tag2&gt;&quot;</span><span class="ot">,</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true"></a>    <span class="st">&quot;&lt;tag3&gt;&quot;</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true"></a>  <span class="ot">]</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true"></a><span class="fu">}</span></span></code></pre></div>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and <code>&lt;tag1&gt;</code>, <code>&lt;tag2&gt;</code>, and <code>&lt;tag3&gt;</code> are each tags on the repository.</p>
+<p>In addition to fetching the whole list of tags, a subset of the tags can be fetched by providing the <code>n</code> query parameter. In this case, the path will look like the following: <code>/v2/&lt;name&gt;/tags/list?n=&lt;int&gt;</code> <sup><a href="#endpoints">end-8b</a></sup></p>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and <code>&lt;int&gt;</code> is an integer specifying the number of tags requested. The response to such a request MAY return fewer than <code>&lt;int&gt;</code> results, but only when the total number of tags attached to the repository is less than <code>&lt;int&gt;</code>. Otherwise, the response MUST include <code>&lt;int&gt;</code> results. When <code>n</code> is zero, this endpoint MUST return an empty list, and MUST NOT include a <code>Link</code> header. Without the <code>last</code> query parameter (described next), the list returned will start at the beginning of the list and include <code>&lt;int&gt;</code> results. As above, the tags MUST be in lexical order.</p>
+<p>The <code>last</code> query parameter provides further means for limiting the number of tags. It is usually used in combination with the <code>n</code> parameter: <code>/v2/&lt;name&gt;/tags/list?n=&lt;int&gt;&amp;last=&lt;tagname&gt;</code> <sup><a href="#endpoints">end-8b</a></sup></p>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, <code>&lt;int&gt;</code> is the number of tags requested, and <code>&lt;tagname&gt;</code> is the <em>value</em> of the last tag. <code>&lt;tagname&gt;</code> MUST NOT be a numerical index, but rather it MUST be a proper tag. A request of this sort will return up to <code>&lt;int&gt;</code> tags, beginning non-inclusively with <code>&lt;tagname&gt;</code>. That is to say, <code>&lt;tagname&gt;</code> will not be included in the results, but up to <code>&lt;int&gt;</code> tags <em>after</em> <code>&lt;tagname&gt;</code> will be returned. The tags MUST be in lexical order.</p>
+<p>When using the <code>last</code> query parameter, the <code>n</code> parameter is OPTIONAL.</p>
+<h5 id="listing-referrers">Listing Referrers</h5>
+<p><em>Note: this feature was added in distibution-spec 1.1. Registries should see <a href="#enabling-the-referrers-api">Enabling the Referrers API</a> before enabling this.</em></p>
+<p>To fetch the list of referrers, perform a <code>GET</code> request to a path in the following format: <code>/v2/&lt;name&gt;/referrers/&lt;digest&gt;</code> <sup><a href="#endpoints">end-12a</a></sup>.</p>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and <code>&lt;digest&gt;</code> is the digest of the manifest specified in the <code>subject</code> field.</p>
+<p>Assuming a repository is found, this request MUST return a <code>200 OK</code> response code. If the registry supports the referrers API, the registry MUST NOT return a <code>404 Not Found</code> to a referrers API requests. If the request is invalid, such as a <code>&lt;digest&gt;</code> with an invalid syntax, a <code>400 Bad Request</code> MUST be returned.</p>
+<p>Upon success, the response MUST be a JSON body with an image index containing a list of descriptors. Each descriptor is of an image manifest in the same <code>&lt;name&gt;</code> namespace with a <code>subject</code> field that specifies the value of <code>&lt;digest&gt;</code>. The descriptors MUST include an <code>artifactType</code> field that is set to the value of the <code>artifactType</code> in the image manifest, if present. If the <code>artifactType</code> is empty or missing in the image manifest, the value of <code>artifactType</code> MUST be set to the config descriptor <code>mediaType</code> value. The descriptors MUST include annotations from the image manifest. If a query results in no matching referrers, an empty manifest list MUST be returned. If a manifest with the digest <code>&lt;digest&gt;</code> does not exist, a registry MAY return an empty manifest list. After a manifest with the digest <code>&lt;digest&gt;</code> is pushed, the registry MUST include previously pushed entries in the referrers list.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true"></a><span class="fu">{</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true"></a>  <span class="dt">&quot;schemaVersion&quot;</span><span class="fu">:</span> <span class="dv">2</span><span class="fu">,</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true"></a>  <span class="dt">&quot;mediaType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.oci.image.index.v1+json&quot;</span><span class="fu">,</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true"></a>  <span class="dt">&quot;manifests&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true"></a>    <span class="fu">{</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true"></a>      <span class="dt">&quot;mediaType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.oci.image.manifest.v1+json&quot;</span><span class="fu">,</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true"></a>      <span class="dt">&quot;size&quot;</span><span class="fu">:</span> <span class="dv">1234</span><span class="fu">,</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true"></a>      <span class="dt">&quot;digest&quot;</span><span class="fu">:</span> <span class="st">&quot;sha256:a1a1a1...&quot;</span><span class="fu">,</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true"></a>      <span class="dt">&quot;artifactType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.example.sbom.v1&quot;</span><span class="fu">,</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true"></a>      <span class="dt">&quot;annotations&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true"></a>        <span class="dt">&quot;org.opencontainers.artifact.created&quot;</span><span class="fu">:</span> <span class="st">&quot;2022-01-01T14:42:55Z&quot;</span><span class="fu">,</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true"></a>        <span class="dt">&quot;org.example.sbom.format&quot;</span><span class="fu">:</span> <span class="st">&quot;json&quot;</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true"></a>      <span class="fu">}</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true"></a>    <span class="fu">}</span><span class="ot">,</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true"></a>    <span class="fu">{</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true"></a>      <span class="dt">&quot;mediaType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.oci.image.manifest.v1+json&quot;</span><span class="fu">,</span></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true"></a>      <span class="dt">&quot;size&quot;</span><span class="fu">:</span> <span class="dv">1234</span><span class="fu">,</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true"></a>      <span class="dt">&quot;digest&quot;</span><span class="fu">:</span> <span class="st">&quot;sha256:a2a2a2...&quot;</span><span class="fu">,</span></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true"></a>      <span class="dt">&quot;artifactType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.example.signature.v1&quot;</span><span class="fu">,</span></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true"></a>      <span class="dt">&quot;annotations&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true"></a>        <span class="dt">&quot;org.opencontainers.artifact.created&quot;</span><span class="fu">:</span> <span class="st">&quot;2022-01-01T07:21:33Z&quot;</span><span class="fu">,</span></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true"></a>        <span class="dt">&quot;org.example.signature.fingerprint&quot;</span><span class="fu">:</span> <span class="st">&quot;abcd&quot;</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true"></a>      <span class="fu">}</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true"></a>    <span class="fu">}</span></span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true"></a>  <span class="ot">]</span></span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true"></a><span class="fu">}</span></span></code></pre></div>
+<p>A <code>Link</code> header MUST be included in the response when the descriptor list cannot be returned in a single manifest. Each response is an image index with different descriptors in the <code>manifests</code> field. The <code>Link</code> header MUST be set according to <a href="https://www.rfc-editor.org/rfc/rfc5988.html">RFC5988</a> with the Relation Type <code>rel="next"</code>.</p>
+<p>The registry SHOULD support filtering on <code>artifactType</code>. To fetch the list of referrers with a filter, perform a <code>GET</code> request to a path in the following format: <code>/v2/&lt;name&gt;/referrers/&lt;digest&gt;?artifactType=&lt;mediaType&gt;</code> <sup><a href="#endpoints">end-12b</a></sup>. If filtering is requested and applied, the response MUST include a header <code>OCI-Filters-Applied: artifactType</code> denoting that an <code>artifactType</code> filter was applied. If multiple filters are applied, the header MUST contain a comma separated list of applied filters.</p>
+<p>Example request with filtering:</p>
+<pre><code>GET /v2/&lt;name&gt;/referrers/&lt;digest&gt;?artifactType=application/vnd.example.sbom.v1
+</code></pre>
+<p>Example response with filtering:</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true"></a><span class="er">OCI-Filters-Applied:</span> <span class="er">artifactType</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true"></a><span class="fu">{</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true"></a>  <span class="dt">&quot;schemaVersion&quot;</span><span class="fu">:</span> <span class="dv">2</span><span class="fu">,</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true"></a>  <span class="dt">&quot;mediaType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.oci.image.index.v1+json&quot;</span><span class="fu">,</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true"></a>  <span class="dt">&quot;manifests&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true"></a>    <span class="fu">{</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true"></a>      <span class="dt">&quot;mediaType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.oci.image.manifest.v1+json&quot;</span><span class="fu">,</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true"></a>      <span class="dt">&quot;size&quot;</span><span class="fu">:</span> <span class="dv">1234</span><span class="fu">,</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true"></a>      <span class="dt">&quot;digest&quot;</span><span class="fu">:</span> <span class="st">&quot;sha256:a1a1a1...&quot;</span><span class="fu">,</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true"></a>      <span class="dt">&quot;artifactType&quot;</span><span class="fu">:</span> <span class="st">&quot;application/vnd.example.sbom.v1&quot;</span><span class="fu">,</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true"></a>      <span class="dt">&quot;annotations&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true"></a>        <span class="dt">&quot;org.opencontainers.artifact.created&quot;</span><span class="fu">:</span> <span class="st">&quot;2022-01-01T14:42:55Z&quot;</span><span class="fu">,</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true"></a>        <span class="dt">&quot;org.example.sbom.format&quot;</span><span class="fu">:</span> <span class="st">&quot;json&quot;</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true"></a>      <span class="fu">}</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true"></a>    <span class="fu">}</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true"></a>  <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true"></a><span class="fu">}</span></span></code></pre></div>
+<p>If the <a href="#listing-referrers">referrers API</a> returns a 404, the client MUST fallback to pulling the <a href="#referrers-tag-schema">referrers tag schema</a>. The response SHOULD be an image index with the same content that would be expected from the referrers API. If the response to the <a href="#listing-referrers">referrers API</a> is a 404, and the tag schema does not return a valid image index, the client SHOULD assume there are no referrers to the manifest.</p>
+<h4 id="content-management">Content Management</h4>
+<p>Content management refers to the deletion of blobs, tags, and manifests. Registries MAY implement deletion or they MAY disable it. Similarly, a registry MAY implement tag deletion, while others MAY allow deletion only by manifest.</p>
+<h5 id="deleting-tags">Deleting tags</h5>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and <code>&lt;tag&gt;</code> is the name of the tag to be deleted. Upon success, the registry MUST respond with a <code>202 Accepted</code> code. If tag deletion is disabled, the registry MUST respond with either a <code>400 Bad Request</code> or a <code>405 Method Not Allowed</code>.</p>
+<p>To delete a tag, perform a <code>DELETE</code> request to a path in the following format: <code>/v2/&lt;name&gt;/manifests/&lt;tag&gt;</code> <sup><a href="#endpoints">end-9</a></sup></p>
+<h5 id="deleting-manifests">Deleting Manifests</h5>
+<p>To delete a manifest, perform a <code>DELETE</code> request to a path in the following format: <code>/v2/&lt;name&gt;/manifests/&lt;digest&gt;</code> <sup><a href="#endpoints">end-9</a></sup></p>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and <code>&lt;digest&gt;</code> is the digest of the manifest to be deleted. Upon success, the registry MUST respond with a <code>202 Accepted</code> code. If the repository does not exist, the response MUST return <code>404 Not Found</code>.</p>
+<p>When deleting an image manifest that contains a <code>subject</code> field, and the <a href="#listing-referrers">referrers API</a> returns a 404, clients SHOULD:</p>
+<ol>
+<li>Pull the referrers list using the <a href="#referrers-tag-schema">referrers tag schema</a>.</li>
+<li>Remove the descriptor entry from the array of manifests that references the deleted manifest.</li>
+<li>Push the updated referrers list using the same <a href="#referrers-tag-schema">referrers tag schema</a>. The client MAY use conditional HTTP requests to prevent overwriting an referrers list that has changed since it was first pulled.</li>
+</ol>
+<p>When deleting a manifest that has an associated <a href="#referrers-tag-schema">referrers tag schema</a>, clients MAY also delete the referrers tag when it returns a valid image index.</p>
+<h5 id="deleting-blobs">Deleting Blobs</h5>
+<p>To delete a blob, perform a <code>DELETE</code> request to a path in the following format: <code>/v2/&lt;name&gt;/blobs/&lt;digest&gt;</code> <sup><a href="#endpoints">end-10</a></sup></p>
+<p><code>&lt;name&gt;</code> is the namespace of the repository, and <code>&lt;digest&gt;</code> is the digest of the blob to be deleted. Upon success, the registry MUST respond with code <code>202 Accepted</code>. If the blob is not found, a <code>404 Not Found</code> code MUST be returned.</p>
+<h3 id="backwards-compatibility">Backwards Compatibility</h3>
+<p>Client implementations MUST support registries that implement partial or older versions of the OCI Distribution Spec. This section describes client fallback procedures that MUST be implemented when a new/optional API is not available from a registry.</p>
+<h4 id="unavailable-referrers-api">Unavailable Referrers API</h4>
+<p>A client that pushes an image manifest with a defined <code>subject</code> field MUST verify the <a href="#listing-referrers">referrers API</a> is available or fallback to updating the image index pushed to a tag described by the <a href="#referrers-tag-schema">referrers tag schema</a>. A client querying the <a href="#listing-referrers">referrers API</a> and receiving a <code>404 Not Found</code> MUST fallback to using an image index pushed to a tag described by the <a href="#referrers-tag-schema">referrers tag schema</a>.</p>
+<h5 id="referrers-tag-schema">Referrers Tag Schema</h5>
+<pre class="text"><code>&lt;alg&gt;-&lt;ref&gt;
+</code></pre>
+<ul>
+<li><code>&lt;alg&gt;</code>: the digest algorithm (e.g. <code>sha256</code> or <code>sha512</code>)</li>
+<li><code>&lt;ref&gt;</code>: the digest from the <code>subject</code> field (limit of 64 characters)</li>
+</ul>
+<p>For example, a manifest with the <code>subject</code> field digest set to <code>sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code> in the <code>registry.example.org/project</code> repository would have a descriptor in the referrers list at <code>registry.example.org/project:sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code>.</p>
+<p>This tag should return an image index matching the expected response of the <a href="#listing-referrers">referrers API</a>. Maintaining the content of this tag is the responsibility of clients pushing and deleting image manifests that contain a <code>subject</code> field.</p>
+<p><em>Note</em>: multiple clients could attempt to update the tag simultaneously resulting in race conditions and data loss. Protection against race conditions is the responsibility of clients and end users, and can be resolved by using a registry that provides the <a href="#listing-referrers">referrers API</a>. Clients MAY use a conditional HTTP push for registries that support ETag conditions to avoid conflicts with other clients.</p>
+<h3 id="upgrade-procedures">Upgrade Procedures</h3>
+<p>The following describes procedures for upgrading to a newer version of the spec and the process to enable new APIs.</p>
+<h4 id="enabling-the-referrers-api">Enabling the Referrers API</h4>
+<p>The referrers API here is described by <a href="#listing-referrers">Listing Referrers</a> and <a href="#endpoints">end-12a</a>. When registries add support for the referrers API, this API needs to account for manifests that were pushed before the API was available using the <a href="#referrers-tag-schema">Referrers Tag Schema</a>.</p>
+<ol>
+<li>Registries MUST include preexisting image manifests that are listed in an image index tagged with the <a href="#referrers-tag-schema">referrers tag schema</a> and have a valid <code>subject</code> field in the referrers API response.</li>
+<li>Registries MAY include all preexisting image manifests with a <code>subject</code> field in the referrers API response.</li>
+<li>After the referrers API is enabled, Registries MUST include all newly pushed image manifests with a valid <code>subject</code> field in the referrers API response.</li>
+</ol>
+<h3 id="api">API</h3>
+<p>The API operates over HTTP. Below is a summary of the endpoints used by the API.</p>
+<h4 id="determining-support">Determining Support</h4>
+<p>To check whether or not the registry implements this specification, perform a <code>GET</code> request to the following endpoint: <code>/v2/</code> <sup><a href="#endpoints">end-1</a></sup>.</p>
+<p>If the response is <code>200 OK</code>, then the registry implements this specification.</p>
+<p>This endpoint MAY be used for authentication/authorization purposes, but this is out of the purview of this specification.</p>
+<h4 id="endpoints">Endpoints</h4>
+<table>
+<thead>
+<tr class="header">
+<th>ID</th>
+<th>Method</th>
+<th>API Endpoint</th>
+<th>Success</th>
+<th>Failure</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>end-1</td>
+<td><code>GET</code></td>
+<td><code>/v2/</code></td>
+<td><code>200</code></td>
+<td><code>404</code>/<code>401</code></td>
+</tr>
+<tr class="even">
+<td>end-2</td>
+<td><code>GET</code> / <code>HEAD</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/&lt;digest&gt;</code></td>
+<td><code>200</code></td>
+<td><code>404</code></td>
+</tr>
+<tr class="odd">
+<td>end-3</td>
+<td><code>GET</code> / <code>HEAD</code></td>
+<td><code>/v2/&lt;name&gt;/manifests/&lt;reference&gt;</code></td>
+<td><code>200</code></td>
+<td><code>404</code></td>
+</tr>
+<tr class="even">
+<td>end-4a</td>
+<td><code>POST</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/uploads/</code></td>
+<td><code>202</code></td>
+<td><code>404</code></td>
+</tr>
+<tr class="odd">
+<td>end-4b</td>
+<td><code>POST</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/uploads/?digest=&lt;digest&gt;</code></td>
+<td><code>201</code>/<code>202</code></td>
+<td><code>404</code>/<code>400</code></td>
+</tr>
+<tr class="even">
+<td>end-5</td>
+<td><code>PATCH</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/uploads/&lt;reference&gt;</code></td>
+<td><code>202</code></td>
+<td><code>404</code>/<code>416</code></td>
+</tr>
+<tr class="odd">
+<td>end-6</td>
+<td><code>PUT</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/uploads/&lt;reference&gt;?digest=&lt;digest&gt;</code></td>
+<td><code>201</code></td>
+<td><code>404</code>/<code>400</code></td>
+</tr>
+<tr class="even">
+<td>end-7</td>
+<td><code>PUT</code></td>
+<td><code>/v2/&lt;name&gt;/manifests/&lt;reference&gt;</code></td>
+<td><code>201</code></td>
+<td><code>404</code></td>
+</tr>
+<tr class="odd">
+<td>end-8a</td>
+<td><code>GET</code></td>
+<td><code>/v2/&lt;name&gt;/tags/list</code></td>
+<td><code>200</code></td>
+<td><code>404</code></td>
+</tr>
+<tr class="even">
+<td>end-8b</td>
+<td><code>GET</code></td>
+<td><code>/v2/&lt;name&gt;/tags/list?n=&lt;integer&gt;&amp;last=&lt;integer&gt;</code></td>
+<td><code>200</code></td>
+<td><code>404</code></td>
+</tr>
+<tr class="odd">
+<td>end-9</td>
+<td><code>DELETE</code></td>
+<td><code>/v2/&lt;name&gt;/manifests/&lt;reference&gt;</code></td>
+<td><code>202</code></td>
+<td><code>404</code>/<code>400</code>/<code>405</code></td>
+</tr>
+<tr class="even">
+<td>end-10</td>
+<td><code>DELETE</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/&lt;digest&gt;</code></td>
+<td><code>202</code></td>
+<td><code>404</code>/<code>405</code></td>
+</tr>
+<tr class="odd">
+<td>end-11</td>
+<td><code>POST</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/uploads/?mount=&lt;digest&gt;&amp;from=&lt;other_name&gt;</code></td>
+<td><code>201</code></td>
+<td><code>404</code></td>
+</tr>
+<tr class="even">
+<td>end-12a</td>
+<td><code>GET</code></td>
+<td><code>/v2/&lt;name&gt;/referrers/&lt;digest&gt;</code></td>
+<td><code>200</code></td>
+<td><code>404</code>/<code>400</code></td>
+</tr>
+<tr class="odd">
+<td>end-12b</td>
+<td><code>GET</code></td>
+<td><code>/v2/&lt;name&gt;/referrers/&lt;digest&gt;?artifactType=&lt;artifactType&gt;</code></td>
+<td><code>200</code></td>
+<td><code>404</code>/<code>400</code></td>
+</tr>
+<tr class="even">
+<td>end-13</td>
+<td><code>GET</code></td>
+<td><code>/v2/&lt;name&gt;/blobs/uploads/&lt;reference&gt;</code></td>
+<td><code>204</code></td>
+<td><code>404</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="error-codes">Error Codes</h4>
+<p>A <code>4XX</code> response code from the registry MAY return a body in any format. If the response body is in JSON format, it MUST have the following format:</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true"></a>    <span class="fu">{</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true"></a>        <span class="dt">&quot;errors&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true"></a>            <span class="fu">{</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true"></a>                <span class="dt">&quot;code&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;error identifier, see below&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true"></a>                <span class="dt">&quot;message&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;message describing condition&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true"></a>                <span class="dt">&quot;detail&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;unstructured&gt;&quot;</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true"></a>            <span class="fu">}</span><span class="ot">,</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true"></a>            <span class="er">...</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true"></a>        <span class="ot">]</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true"></a>    <span class="fu">}</span></span></code></pre></div>
+<p>The <code>code</code> field MUST be a unique identifier, containing only uppercase alphabetic characters and underscores. The <code>message</code> field is OPTIONAL, and if present, it SHOULD be a human readable string or MAY be empty. The <code>detail</code> field is OPTIONAL and MAY contain arbitrary JSON data providing information the client can use to resolve the issue.</p>
+<p>The <code>code</code> field MUST be one of the following:</p>
+<table>
+<thead>
+<tr class="header">
+<th>ID</th>
+<th>Code</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>code-1</td>
+<td><code>BLOB_UNKNOWN</code></td>
+<td>blob unknown to registry</td>
+</tr>
+<tr class="even">
+<td>code-2</td>
+<td><code>BLOB_UPLOAD_INVALID</code></td>
+<td>blob upload invalid</td>
+</tr>
+<tr class="odd">
+<td>code-3</td>
+<td><code>BLOB_UPLOAD_UNKNOWN</code></td>
+<td>blob upload unknown to registry</td>
+</tr>
+<tr class="even">
+<td>code-4</td>
+<td><code>DIGEST_INVALID</code></td>
+<td>provided digest did not match uploaded content</td>
+</tr>
+<tr class="odd">
+<td>code-5</td>
+<td><code>MANIFEST_BLOB_UNKNOWN</code></td>
+<td>manifest references a manifest or blob unknown to registry</td>
+</tr>
+<tr class="even">
+<td>code-6</td>
+<td><code>MANIFEST_INVALID</code></td>
+<td>manifest invalid</td>
+</tr>
+<tr class="odd">
+<td>code-7</td>
+<td><code>MANIFEST_UNKNOWN</code></td>
+<td>manifest unknown to registry</td>
+</tr>
+<tr class="even">
+<td>code-8</td>
+<td><code>NAME_INVALID</code></td>
+<td>invalid repository name</td>
+</tr>
+<tr class="odd">
+<td>code-9</td>
+<td><code>NAME_UNKNOWN</code></td>
+<td>repository name not known to registry</td>
+</tr>
+<tr class="even">
+<td>code-10</td>
+<td><code>SIZE_INVALID</code></td>
+<td>provided length did not match content length</td>
+</tr>
+<tr class="odd">
+<td>code-11</td>
+<td><code>UNAUTHORIZED</code></td>
+<td>authentication required</td>
+</tr>
+<tr class="even">
+<td>code-12</td>
+<td><code>DENIED</code></td>
+<td>requested access to the resource is denied</td>
+</tr>
+<tr class="odd">
+<td>code-13</td>
+<td><code>UNSUPPORTED</code></td>
+<td>the operation is unsupported</td>
+</tr>
+<tr class="even">
+<td>code-14</td>
+<td><code>TOOMANYREQUESTS</code></td>
+<td>too many requests</td>
+</tr>
+</tbody>
+</table>
+<h4 id="warnings">Warnings</h4>
+<p>Registry implementations MAY include informational warnings in <code>Warning</code> headers, as described in <a href="https://www.rfc-editor.org/rfc/rfc7234#section-5.5">RFC 7234</a>.</p>
+<p>If included, <code>Warning</code> headers MUST specify a <code>warn-code</code> of <code>299</code> and a <code>warn-agent</code> of <code>-</code>, and MUST NOT specify a <code>warn-date</code> value.</p>
+<p>A registry MUST NOT send more than 4096 bytes of warning data from all headers combined.</p>
+<p>Example warning headers:</p>
+<pre><code>Warning: 299 - &quot;Your auth token will expire in 30 seconds.&quot;
+Warning: 299 - &quot;This registry endpoint is deprecated and will be removed soon.&quot;
+Warning: 299 - &quot;This image is deprecated and will be removed soon.&quot;
+</code></pre>
+<p>If a client receives <code>Warning</code> response headers, it SHOULD report the warnings to the user in an unobtrusive way. Clients SHOULD deduplicate warnings from multiple associated responses. In accordance with RFC 7234, clients MUST NOT take any automated action based on the presence or contents of warnings, only report them to the user.</p>
+<h3 id="appendix">Appendix</h3>
+<p>The following is a list of documents referenced in this spec:</p>
+<table>
+<thead>
+<tr class="header">
+<th>ID</th>
+<th>Title</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>apdx-1</td>
+<td><a href="https://github.com/docker/distribution/blob/5cb406d511b7b9163bff9b6439072e4892e5ae3b/docs/spec/api.md">Docker Registry HTTP API V2</a></td>
+<td>The original document upon which this spec was based</td>
+</tr>
+<tr class="even">
+<td>apdx-1</td>
+<td><a href="https://github.com/opencontainers/distribution-spec/blob/ef28f81727c3b5e98ab941ae050098ea664c0960/detail.md">Details</a></td>
+<td>Historical document describing original API endpoints and requests in detail</td>
+</tr>
+<tr class="odd">
+<td>apdx-2</td>
+<td><a href="https://github.com/opencontainers/image-spec/blob/v1.0.1/manifest.md">OCI Image Spec - image</a></td>
+<td>Description of an image manifest, defined by the OCI Image Spec</td>
+</tr>
+<tr class="even">
+<td>apdx-3</td>
+<td><a href="https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md#digests">OCI Image Spec - digests</a></td>
+<td>Description of digests, defined by the OCI Image Spec</td>
+</tr>
+<tr class="odd">
+<td>apdx-4</td>
+<td><a href="https://github.com/opencontainers/image-spec/blob/v1.0.1/config.md">OCI Image Spec - config</a></td>
+<td>Description of configs, defined by the OCI Image Spec</td>
+</tr>
+<tr class="even">
+<td>apdx-5</td>
+<td><a href="https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md">OCI Image Spec - descriptor</a></td>
+<td>Description of descriptors, defined by the OCI Image Spec</td>
+</tr>
+<tr class="odd">
+<td>apdx-6</td>
+<td><a href="https://github.com/opencontainers/image-spec/blob/v1.0.1/image-index.md">OCI Image Spec - index</a></td>
+<td>Description of image index, defined by the OCI Image Spec</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
