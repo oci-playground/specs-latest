@@ -63,15 +63,31 @@ func processConfig(config *specsConfig) {
 	gitWorkspace := filepath.Join(currentDir, "docs", "git-workspace")
 	log.Printf("ensuring git workspace directory %s", gitWorkspace)
 	os.MkdirAll(gitWorkspace, 0755)
+	s := `<html>
+<head>
+<title>OCI specs latest</title>
+</head>
+<body style="background:#e8e9ff;padding: 20px;font-family: monospace">
+<div style="width:100%px; max-width:700px;text-align:left;padding: 20px;border:1px solid #c7c2c2; background:white">
+<h1>OCI specs latest</h1>
+`
 	for _, spec := range config.Specs {
 		os.Chdir(gitWorkspace)
-		processSpec(&spec)
-
+		s += processSpec(&spec)
 	}
 	os.Chdir(currentDir)
+	s += `</div>
+</body>
+</html>
+`
+	indexFile := filepath.Join(currentDir, "docs", "index.html")
+	if err := os.WriteFile(indexFile, []byte(s), 0644); err != nil {
+		log.Fatalf("WriteFile: %v", err)
+	}
 }
 
-func processSpec(spec *specsConfigSpec) {
+func processSpec(spec *specsConfigSpec) string {
+	s := fmt.Sprintf("<hr/><h2>%s</h2>\n", spec.Name)
 	currentDir := absPath()
 	log.Printf("[%s] begin processing, https git remote: %s", spec.Name, spec.Remote)
 	base := strings.TrimSuffix(filepath.Base(spec.Remote), ".git")
@@ -87,7 +103,9 @@ func processSpec(spec *specsConfigSpec) {
 	}
 	specOutputParentDir := filepath.Join(currentDir, "..", "specs", spec.Name)
 	os.MkdirAll(specOutputParentDir, 0755)
-	for i, release := range spec.Releases {
+	s += "<ul>"
+	for i := len(spec.Releases) - 1; i >= 0; i-- {
+		release := spec.Releases[i]
 		log.Printf("[%s] count:%d tag:%s branch:%s commit:%s", spec.Name, i+1, release.Commit, release.Tag, release.Branch)
 		checkoutTarget := release.Tag
 		if checkoutTarget == "" {
@@ -96,6 +114,7 @@ func processSpec(spec *specsConfigSpec) {
 				log.Fatalf("[%s] invalid config for release at index %d", spec.Name, i)
 			}
 		}
+		s += fmt.Sprintf("<li><div><h3>%s</h3><p>release date: TODO</p></div></li>\n", checkoutTarget)
 
 		specOutputDir := filepath.Join(specOutputParentDir, checkoutTarget)
 		if _, err := os.Stat(specOutputDir); !os.IsNotExist(err) {
@@ -149,7 +168,9 @@ func processSpec(spec *specsConfigSpec) {
 			log.Fatalf("os.Rename: %v", err)
 		}
 	}
+	s += "</ul>"
 	log.Printf("[%s] changing dir to %s", spec.Name, currentDir)
 	os.Chdir(currentDir)
 	log.Printf("[%s] end processing", spec.Name)
+	return s
 }
